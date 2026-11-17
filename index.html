@@ -39,14 +39,31 @@
         background:var(--bubble);color:var(--ink);cursor:pointer;font-family:inherit}
   #classes button:hover,#classes button:focus-visible{background:var(--ink);color:#fff;outline:none}
   #menu.gone{display:none}
+  #chat{position:fixed;top:92px;left:50%;width:min(520px,94vw);transform:translate(-50%,-10px);z-index:30;opacity:0;
+        transition:opacity .35s,transform .35s;pointer-events:none;display:flex;flex-direction:column;gap:10px}
+  #chat.show{opacity:1;transform:translate(-50%,0)}
+  #chat .msg{display:flex;align-items:center;gap:10px}
+  #chat .out{justify-content:flex-end}
+  #chat .av{flex:none;width:64px;height:64px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px #4da3ff;
+        background:linear-gradient(135deg,#6ec6ff,#c28bff,#ffd36e);overflow:hidden}
+  #chat .av svg{display:block;width:100%;height:100%}
+  #chat .bub{padding:10px 16px;border-radius:18px;font-size:15px;line-height:1.3;box-shadow:0 3px 10px rgba(0,0,0,.2)}
+  #chat .in .bub{background:#1d5fe0;color:#fff}
+  #chat .out .bub{background:#7bd36b;color:#1d3a1a;border:2px solid #fff}
+  #chat .bub b{display:block;font-size:12px;opacity:.85;margin-bottom:2px}
   @media (prefers-reduced-motion:reduce){.leg,.arm{animation-duration:1.6s}}
 </style>
 </head>
 <body>
 <div id="menu"><h1>Elif hocanın sınıfları</h1><div id="classes"></div></div>
 <div id="scene">
-  <div id="title">Speaking exam in progress<small>Please stay quietly in your seat and watch our friends walk</small></div>
+  <div id="title">Konuşma sınavı devam ediyor<small>Lütfen sessizce oturun ve tahtayı seyredin</small></div>
   <div id="path"></div>
+</div>
+
+<div id="chat" aria-hidden="true">
+  <div class="msg in"><div class="av"></div><div class="bub"><b></b><span></span></div></div>
+  <div class="msg out"><div class="bub"><b></b><span></span></div><div class="av"></div></div>
 </div>
 
 <div id="panel">
@@ -70,6 +87,18 @@ const SAYINGS = [
   "Selam, nasılsın?", "Sadece yürüyorum.", "Sessiz olun lütfen :)", "Adın ne?",
   "Pizzayı severim.", "Bugün cuma mı?", "İngilizce konuşma pratiği yapıyorum!", "Sonra görüşürüz!"
 ];
+const MESSAGES = [                      // the random message (top bubble)
+  "Ne zaman beni ziyaret edeceksin?",
+  "Haftasonu müsait misin? Hadi buluşalım!",
+  "Ödevini yapmayı bitirdin mi?",
+  "Şu an ne yapıyorsun?",
+  "Kahvaltıda ne yedin?",
+  "Uzun zamandır senden haber almadım, nasılsın??",
+  "İngilizce çalışmama yardım eder misin?",
+  "Hadi yarın sinemaya gidelim, olur mu??"
+];
+const FIXED_REPLY = "Um... I can't... But it was nice talking to you.";   // the fixed answer (bottom bubble)
+const POPUP_EVERY = 10000, POPUP_STAYS = 4000;                          // milliseconds
 const SHIRTS = ["#e4572e","#17bebb","#ffc914","#76b041","#a45ee5","#ff8fa3","#4d9de0","#f08a4b"];
 /* ============================ */
 
@@ -97,11 +126,12 @@ function addStudent(name, i = walkers.length){
   const el = document.createElement("div");
   el.className = "walker";
   const skins = ["#f2c9a0","#d9a577","#b57b50","#8a5a3b"];
-  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${svg(SHIRTS[i % SHIRTS.length], pick(skins))}</div>`;
+  const shirt = SHIRTS[i % SHIRTS.length], skin = pick(skins);
+  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${svg(shirt, skin)}</div>`;
   el.querySelector(".name").textContent = name;
   scene.appendChild(el);
   const w = {
-    el, name, dir: Math.random() < .5 ? 1 : -1,
+    el, name, shirt, skin, dir: Math.random() < .5 ? 1 : -1,
     x: Math.random() < .5 ? -80 : innerWidth, speed: rand(30, 70),
     lane: (i * 0.618034) % 1, speaking: false, nextTalk: performance.now() + rand(3000, 3000 + Math.max(6000, expected * 1000))
   };
@@ -137,6 +167,27 @@ function tick(now){
   requestAnimationFrame(tick);
 }
 
+/* chat pop-up: two random students on screen, random message, fixed answer */
+const chat = document.getElementById("chat");
+const faceSvg = w => svg(w.shirt, w.skin).replace('class="person" viewBox="0 0 90 150"', 'viewBox="18 10 54 54"');
+let chatHide = null;
+function showChat(){
+  if (!menu.classList.contains("gone") || walkers.length < 2) return;
+  const a = pick(walkers);
+  let b; do { b = pick(walkers); } while (b === a);
+  const [m1, m2] = chat.querySelectorAll(".msg");
+  m1.querySelector(".av").innerHTML = faceSvg(a);
+  m1.querySelector("b").textContent = a.name;
+  m1.querySelector("span").textContent = pick(MESSAGES);
+  m2.querySelector(".av").innerHTML = faceSvg(b);
+  m2.querySelector("b").textContent = b.name;
+  m2.querySelector("span").textContent = FIXED_REPLY;
+  chat.classList.add("show");
+  clearTimeout(chatHide);
+  chatHide = setTimeout(() => chat.classList.remove("show"), POPUP_STAYS);
+}
+setInterval(showChat, POPUP_EVERY);
+
 /* students are stored per class in this browser, so last-minute changes are remembered */
 let current = null, timers = [];
 const menu = document.getElementById("menu");
@@ -156,6 +207,7 @@ function openClass(c){
 function closeClass(){
   timers.forEach(clearTimeout); timers = [];
   walkers.splice(0).forEach(w => w.el.remove());
+  chat.classList.remove("show");
   expected = 0; activeBubbles = 0;
   menu.classList.remove("gone");
 }
