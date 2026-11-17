@@ -405,18 +405,17 @@ const SAYINGS = [
   "Pizzayı severim.", "Bugün cuma mı?", "İngilizce konuşma pratiği yapıyorum!", "Sonra görüşürüz!"
 ];
 
-const MESSAGES = [
-  "Ne zaman beni ziyaret edeceksin?",
-  "Haftasonu müsait misin? Hadi buluşalım!",
-  "Ödevini yapmayı bitirdin mi?",
-  "Şu an ne yapıyorsun?",
-  "Kahvaltıda ne yedin?",
-  "Uzun zamandır senden haber almadım, nasılsın??",
-  "İngilizce çalışmama yardım eder misin?",
-  "Hadi yarın sinemaya gidelim, olur mu??"
+const EXCHANGES = [
+  { q: "Ne zaman beni ziyaret edeceksin?", a: "En yakın zamanda ziyaret edeceğim arkadaşım" },
+  { q: "Haftasonu müsait misin? Hadi buluşalım!", a: "Hayır, müsait değilim; başkasıyla buluş." },
+  { q: "Şu an ne yapıyorsun?", a: "Şu an uslu durup konuşma sınavındaki arkadaşlarıma saygı gösteriyorum." },
+  { q: "Kahvaltıda ne yedin?", a: "İki domates, bir yumurta" },
+  { q: "İngilizce çalışmama yardım eder misin?", a: "Hangi konularda eksiğin var ki?" },
+  { q: "Hadi yarın sinemaya gidelim, olur mu?", a: "Olur ama Marvel filmi izlemeyelim lütfen." },
+  { q: "Ödevini yapmayı bitirdin mi?", a: "Hangi ödevi?" },
+  { q: "Uzun zamandır senden haber almadım, nasılsın?", a: "İyiyim sen nasılsın" },
+  { q: "Kedi sahiplenmeyi düşünüyorum", a: "Adını Rıfkı koy" }
 ];
-
-const FIXED_REPLY = "Um... I can't... But it was nice talking to you.";
 
 const CONFIG = {
   POPUP_EVERY: 10000,
@@ -792,6 +791,8 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
+let chatHide = null;
+
 function showChat() {
   if (!menu.classList.contains("gone") || walkers.length < 2) return;
 
@@ -804,11 +805,12 @@ function showChat() {
   const [m1, m2] = chat.querySelectorAll(".msg");
   m1.querySelector(".av").innerHTML = faceSvg(a);
   m1.querySelector("b").textContent = a.name;
-  m1.querySelector("span").textContent = pick(MESSAGES);
+  const exchange = pick(EXCHANGES);
+  m1.querySelector("span").textContent = exchange.q;
 
   m2.querySelector(".av").innerHTML = faceSvg(b);
   m2.querySelector("b").textContent = b.name;
-  m2.querySelector("span").textContent = FIXED_REPLY;
+  m2.querySelector("span").textContent = exchange.a;
 
   chat.classList.add("show");
   chat.setAttribute("aria-hidden", "false");
@@ -819,7 +821,6 @@ function showChat() {
   }, CONFIG.POPUP_STAYS);
 }
 
-const chatHide = null;
 function faceSvg(w) {
   return svg(w.shirt, w.skin, "front", w.girl).replace(/class="person[^"]*" viewBox="0 0 90 150"/, 'viewBox="14 8 62 62"');
 }
