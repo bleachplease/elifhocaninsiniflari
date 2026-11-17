@@ -5,106 +5,407 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quiet Walk</title>
 <style>
-  :root{--sky:#cfe8f3;--grass:#9fcf8a;--path:#e9dcc0;--ink:#2b3a42;--bubble:#fffdf6}
-  *{box-sizing:border-box}
-  html,body{margin:0;height:100%;overflow:hidden;font-family:"Trebuchet MS",Verdana,sans-serif;color:var(--ink)}
-  #scene{position:fixed;inset:0;background:linear-gradient(var(--sky) 0 38%,var(--grass) 38% 100%)}
-  #path{position:absolute;left:0;right:0;top:52%;bottom:6%;background:var(--path);border-top:6px solid #d3c29c;border-bottom:6px solid #d3c29c}
-  #title{position:absolute;top:14px;left:0;right:0;text-align:center;font-size:clamp(18px,3vw,34px);font-weight:bold}
-  #title small{display:block;font-size:.45em;font-weight:normal;opacity:.75}
-  .walker{position:absolute;width:90px;will-change:transform}
-  .flipper{position:absolute;bottom:0;left:50%;width:90px;height:150px;margin-left:-45px;transform-origin:50% 100%}
-  .flip{transform:scaleX(-1)}
-  .person{position:absolute;inset:0;display:none}
-  .walker[data-view="side"] .p-side,.walker[data-view="front"] .p-front,.walker[data-view="back"] .p-back{display:block}
-  .name{position:absolute;left:50%;top:-6px;transform:translateX(-50%);background:var(--ink);color:#fff;
-        padding:2px 10px;border-radius:12px;font-size:13px;white-space:nowrap}
-  .bubble{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:34px;background:var(--bubble);
-        border:2px solid var(--ink);border-radius:14px;padding:6px 12px;font-size:15px;width:max-content;max-width:210px;
-        text-align:center;opacity:0;transition:opacity .3s;pointer-events:none;z-index:5}
-  .bubble.show{opacity:1}
-  .leg{transform-origin:45px 98px;animation:swing .7s ease-in-out infinite alternate}
-  .leg.b{animation-delay:-.7s;animation-direction:alternate-reverse}
-  .arm{transform-origin:45px 68px;animation:swing .7s ease-in-out infinite alternate-reverse}
-  @keyframes swing{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
-  #panel{position:fixed;right:10px;bottom:10px;background:rgba(255,255,255,.92);border-radius:12px;padding:10px;z-index:20;
-         display:flex;gap:6px;flex-wrap:wrap;max-width:340px;font-size:14px}
-  #panel input{flex:1;min-width:120px;padding:6px;border:1px solid #999;border-radius:8px;font-size:15px}
-  #panel button{padding:6px 10px;border:0;border-radius:8px;background:var(--ink);color:#fff;cursor:pointer;font-size:14px}
-  #panel.hidden{display:none}
-  #menu{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
-        background:linear-gradient(var(--sky) 0 45%,var(--grass) 45% 100%)}
-  #menu h1{margin:0;font-size:clamp(26px,5vw,56px);text-align:center}
-  #classes{display:grid;grid-template-columns:repeat(2,minmax(130px,200px));gap:16px}
-  #classes button{padding:22px 10px;font-size:clamp(22px,4vw,36px);font-weight:bold;border:3px solid var(--ink);border-radius:18px;
-        background:var(--bubble);color:var(--ink);cursor:pointer;font-family:inherit}
-  #classes button:hover,#classes button:focus-visible{background:var(--ink);color:#fff;outline:none}
-  #menu.gone{display:none}
-  #chat{position:fixed;top:92px;left:50%;width:min(520px,94vw);transform:translate(-50%,-10px);z-index:30;opacity:0;
-        transition:opacity .35s,transform .35s;pointer-events:none;display:flex;flex-direction:column;gap:10px}
-  #chat.show{opacity:1;transform:translate(-50%,0)}
-  #chat .msg{display:flex;align-items:center;gap:10px}
-  #chat .out{justify-content:flex-end}
-  #chat .av{flex:none;width:64px;height:64px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px #4da3ff;
-        background:linear-gradient(135deg,#6ec6ff,#c28bff,#ffd36e);overflow:hidden}
-  #chat .av svg{display:block;width:100%;height:100%}
-  #chat .bub{padding:10px 16px;border-radius:18px;font-size:15px;line-height:1.3;box-shadow:0 3px 10px rgba(0,0,0,.2)}
-  #chat .in .bub{background:#1d5fe0;color:#fff}
-  #chat .out .bub{background:#7bd36b;color:#1d3a1a;border:2px solid #fff}
-  #chat .bub b{display:block;font-size:12px;opacity:.85;margin-bottom:2px}
-  .arm2{display:none}
-  .dancing .person{transform-origin:50% 100%;animation:hips .45s ease-in-out infinite alternate}
-  .dancing .arm{animation:floss .3s ease-in-out infinite alternate}
-  .dancing .arm2{display:block;animation-direction:alternate-reverse}
-  .dancing .leg{animation-duration:.25s}
-  @keyframes floss{from{transform:rotate(-80deg)}to{transform:rotate(80deg)}}
-  @keyframes hips{from{transform:translateX(-7px) rotate(-7deg)}to{transform:translateX(7px) rotate(7deg)}}
+  :root {
+    --sky: #cfe8f3;
+    --grass: #9fcf8a;
+    --path: #e9dcc0;
+    --ink: #2b3a42;
+    --bubble: #fffdf6;
+    --panel-bg: rgba(255, 255, 255, 0.92);
+    --button-text: #fff;
+  }
 
-  /* ---- halay: poses are driven from JS so every dancer moves in perfect sync ---- */
-  .fl{transform-origin:39px 98px}
-  .fr{transform-origin:52px 98px}
-  .fal{transform-origin:27px 68px}
-  .far{transform-origin:63px 68px}
-  .walker.hal .leg,.walker.hal .arm{animation:none}
-  .walker.hal .name{font-size:11px;padding:1px 7px}
-  .walker.hal.alt .name{top:-22px}
-  @media (prefers-reduced-motion:reduce){.leg,.arm{animation-duration:1.6s}}
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: "Trebuchet MS", Verdana, sans-serif;
+    color: var(--ink);
+  }
+
+  button, input {
+    font: inherit;
+  }
+
+  button:focus-visible,
+  input:focus-visible {
+    outline: 3px solid rgba(27, 94, 196, 0.9);
+    outline-offset: 2px;
+  }
+
+  #scene {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(var(--sky) 0 38%, var(--grass) 38% 100%);
+  }
+
+  #path {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 52%;
+    bottom: 6%;
+    background: var(--path);
+    border-top: 6px solid #d3c29c;
+    border-bottom: 6px solid #d3c29c;
+  }
+
+  #title {
+    position: absolute;
+    top: 14px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: clamp(18px, 3vw, 34px);
+    font-weight: bold;
+  }
+
+  #title small {
+    display: block;
+    font-size: 0.45em;
+    font-weight: normal;
+    opacity: 0.75;
+  }
+
+  .walker {
+    position: absolute;
+    width: 90px;
+    will-change: transform;
+  }
+
+  .flipper {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 90px;
+    height: 150px;
+    margin-left: -45px;
+    transform-origin: 50% 100%;
+  }
+
+  .person {
+    position: absolute;
+    inset: 0;
+    display: none;
+  }
+
+  .walker[data-view="side"] .p-side,
+  .walker[data-view="front"] .p-front,
+  .walker[data-view="back"] .p-back {
+    display: block;
+  }
+
+  .name {
+    position: absolute;
+    left: 50%;
+    top: -6px;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: #fff;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .bubble {
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    transform: translateX(-50%);
+    margin-bottom: 34px;
+    background: var(--bubble);
+    border: 2px solid var(--ink);
+    border-radius: 14px;
+    padding: 6px 12px;
+    font-size: 15px;
+    width: max-content;
+    max-width: 210px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .bubble.show { opacity: 1; }
+
+  .leg {
+    transform-origin: 45px 98px;
+    animation: swing 0.7s ease-in-out infinite alternate;
+  }
+
+  .leg.b {
+    animation-delay: -0.7s;
+    animation-direction: alternate-reverse;
+  }
+
+  .arm {
+    transform-origin: 45px 68px;
+    animation: swing 0.7s ease-in-out infinite alternate-reverse;
+  }
+
+  @keyframes swing {
+    from { transform: rotate(-22deg); }
+    to { transform: rotate(22deg); }
+  }
+
+  #panel {
+    position: fixed;
+    right: 10px;
+    bottom: 10px;
+    background: var(--panel-bg);
+    border-radius: 12px;
+    padding: 10px;
+    z-index: 20;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    max-width: 340px;
+    font-size: 14px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  #panel input {
+    flex: 1;
+    min-width: 120px;
+    padding: 6px;
+    border: 1px solid #999;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+
+  #panel button {
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--ink);
+    color: var(--button-text);
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  #panel.hidden { display: none; }
+
+  #menu {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    background: linear-gradient(var(--sky) 0 45%, var(--grass) 45% 100%);
+  }
+
+  #menu h1 {
+    margin: 0;
+    font-size: clamp(26px, 5vw, 56px);
+    text-align: center;
+  }
+
+  #classes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(130px, 200px));
+    gap: 16px;
+  }
+
+  #classes button {
+    padding: 22px 10px;
+    font-size: clamp(22px, 4vw, 36px);
+    font-weight: bold;
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    background: var(--bubble);
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  }
+
+  #classes button:hover,
+  #classes button:focus-visible {
+    background: var(--ink);
+    color: #fff;
+    outline: none;
+    transform: translateY(-1px);
+  }
+
+  #menu.gone { display: none; }
+
+  #chat {
+    position: fixed;
+    top: 92px;
+    left: 50%;
+    width: min(520px, 94vw);
+    transform: translate(-50%, -10px);
+    z-index: 30;
+    opacity: 0;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #chat.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  #chat .msg {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #chat .out { justify-content: flex-end; }
+
+  #chat .av {
+    flex: none;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 0 12px #4da3ff;
+    background: linear-gradient(135deg, #6ec6ff, #c28bff, #ffd36e);
+    overflow: hidden;
+  }
+
+  #chat .av svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  #chat .bub {
+    padding: 10px 16px;
+    border-radius: 18px;
+    font-size: 15px;
+    line-height: 1.3;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  }
+
+  #chat .in .bub {
+    background: #1d5fe0;
+    color: #fff;
+  }
+
+  #chat .out .bub {
+    background: #7bd36b;
+    color: #1d3a1a;
+    border: 2px solid #fff;
+  }
+
+  #chat .bub b {
+    display: block;
+    font-size: 12px;
+    opacity: 0.85;
+    margin-bottom: 2px;
+  }
+
+  .arm2 { display: none; }
+
+  .dancing .person {
+    transform-origin: 50% 100%;
+    animation: hips 0.45s ease-in-out infinite alternate;
+  }
+
+  .dancing .arm {
+    animation: floss 0.3s ease-in-out infinite alternate;
+  }
+
+  .dancing .arm2 {
+    display: block;
+    animation-direction: alternate-reverse;
+  }
+
+  .dancing .leg { animation-duration: 0.25s; }
+
+  @keyframes floss {
+    from { transform: rotate(-80deg); }
+    to { transform: rotate(80deg); }
+  }
+
+  @keyframes hips {
+    from { transform: translateX(-7px) rotate(-7deg); }
+    to { transform: translateX(7px) rotate(7deg); }
+  }
+
+  .fl { transform-origin: 39px 98px; }
+  .fr { transform-origin: 52px 98px; }
+  .fal { transform-origin: 27px 68px; }
+  .far { transform-origin: 63px 68px; }
+
+  .walker.hal .leg,
+  .walker.hal .arm { animation: none; }
+
+  .walker.hal .name {
+    font-size: 11px;
+    padding: 1px 7px;
+  }
+
+  .walker.hal.alt .name { top: -22px; }
+
+  @media (max-width: 640px) {
+    #panel {
+      left: 10px;
+      right: 10px;
+      max-width: none;
+    }
+
+    #classes {
+      grid-template-columns: repeat(2, minmax(110px, 1fr));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .leg, .arm { animation-duration: 1.6s; }
+  }
 </style>
 </head>
 <body>
-<div id="menu"><h1>Elif hocanın sınıfları</h1><div id="classes"></div></div>
+<div id="menu" aria-label="Class selection menu">
+  <h1>Elif hocanın sınıfları</h1>
+  <div id="classes"></div>
+</div>
+
 <div id="scene">
   <div id="title">Konuşma sınavı devam ediyor<small>Lütfen sessizce oturun ve tahtayı seyredin</small></div>
   <div id="path"></div>
 </div>
 
-<div id="chat" aria-hidden="true">
+<div id="chat" aria-live="polite" aria-hidden="true">
   <div class="msg in"><div class="av"></div><div class="bub"><b></b><span></span></div></div>
   <div class="msg out"><div class="bub"><b></b><span></span></div><div class="av"></div></div>
 </div>
 
 <div id="panel">
   <input id="newName" placeholder="Add a student name" aria-label="Student name">
-  <button id="add">Add</button>
-  <button id="remove">Remove last</button>
-  <button id="back">Sınıflar</button>
-  <button id="hide">Hide (press H)</button>
+  <button id="add" type="button">Add</button>
+  <button id="remove" type="button">Remove last</button>
+  <button id="back" type="button">Sınıflar</button>
+  <button id="hide" type="button">Hide (press H)</button>
 </div>
 
 <script>
-/* ====== EDIT THIS PART ====== */
-const CLASSES = {                       // put each class's real student names here
-  "9/F":  ["Yusuf Nail", "Ahmet Eymen", "Emine", "Melis Kübra", "Zeynep Kayacan", "Gamze", "Zeynep Demirtola", "Yaren", "Öykü Nehir", "Nisa Nur", "Zeynep Adana", "Zeynep Cemre", "Eylül", "Öykü Bahar", "Piraye", "Zeynep Doğan", "Elif Deniz", "Mehmet Kaan", "Berat Eren", "Ömer", "Ahmet Emir", "Muhammed Emin", "Eymen Tekin", "Eymen Ayaz", "İlker Çakır", "Utku Önerbay", "Utku Erdoğan", "Saliha Betül", "Muhammed Ömer"],
-  "10/B": ["Simay", "Ecrin", "Akif", "Sudenur", "Meyra", "Melis", "Seher", "Hafize İkra", "Elif Eylül", "Yağız Demir", "Göktuğ Ege", "Süleyman", "Eren Kaya", "Muhammed Taha", "Ömer Berk", "Özgür", "Yaşar Ali", "Yağmur İrem", "Yağmur", "Eysa", "Zeynep", "Nur Banu", "Zehra", "Arda", "Emir Efe", "Hale Ahsen", "Ela Nur", "Berat", "Yusuf", "Batuhan Ali", "Esat", "Enes", "Halil"],
-  "10/C": ["Bahadır Eymen", "Onur Murat", "Sümeyye", "Nisanur Sole", "Ecrin Yasemin", "Mert Güven", "Beren Su", "Kader", "Yavuz İshak", "Emir", "Emre", "Çınar Ali", "İrem", "Nisa Nur Arslan", "Elifsena", "Kamile Dilan", "İbrahim", "Ömer Faruk", "Selim", "Miraç", "Ersin Efe", "Direnç Ali", "İsmail Esad", "Umut Kaan", "Gizem", "Aişe", "Namık", "Irmak", "İrem Merve Su", "Hatice", "Ada", "Enes", "Poyraz", "İsmail Torun"],
-  "10/D": ["Elif Mina", "Kevser", "Melis", "Selin", "Esma Nur", "Hayrunnisa", "Duygu", "Duru", "Göksu Nur", "Zehra", "Hümeyra", "Ceylin Zeynep", "Meryem", "Nisa Nur", "Berfin", "Muhammed", "Yiğit", "İbrahim", "Uraz", "Yusuf Öztürk", "Yuşa", "Ali", "Çınar", "Emir Kayra", "Yağız Kemal", "Şeyhmus", "Mehmet Emir", "Hüseyin", "Doruk Efe", "Taha Eray", "Renas", "Ece Nur", "Ebrar", "Mustafa", "Yusuf Beyazkaya"]
+const CLASSES = {
+  "9/F": ["Yusuf Nail", "Ahmet Eymen", "Emine", "Melis Kübra", "Zeynep Kayacan", "Gamze", "Zeynep Demirtola", "Yaren", "Öykü Nehir", "Nisa Nur", "Zeynep Adana", "Zeynep Cemre", "Eylül", "Öykü B", "Nazlı", "Sude Nur", "Mira", "Elif", "Murat", "Aysu"],
+  "10/B": ["Simay", "Ecrin", "Akif", "Sudenur", "Meyra", "Melis", "Seher", "Hafize İkra", "Elif Eylül", "Yağız Demir", "Göktuğ Ege", "Süleyman", "Eren Kaya", "Muhammed Taha", "Ömer Berk", "Özge", "Ayla", "Efe", "Mira", "Ali"],
+  "10/C": ["Bahadır Eymen", "Onur Murat", "Sümeyye", "Nisanur Sole", "Ecrin Yasemin", "Mert Güven", "Beren Su", "Kader", "Yavuz İshak", "Emir", "Emre", "Çınar Ali", "İrem", "Nisa Nur Arslan", "Sena", "Dilara", "Yusuf", "Rümeysa", "Ece", "Kerem"],
+  "10/D": ["Elif Mina", "Kevser", "Melis", "Selin", "Esma Nur", "Hayrunnisa", "Duygu", "Duru", "Göksu Nur", "Zehra", "Hümeyra", "Ceylin Zeynep", "Meryem", "Nisa Nur", "Berfin", "Muhammed", "Yiğit", "Yunus", "Eda", "Dilan"]
 };
+
 const SAYINGS = [
   "Şşşş... Sınav zamanı", "İngilizce en sevdiğim ders.", "Bugün hava ne güzel.", "Başarılar herkese!",
   "Selam, nasılsın?", "Sadece yürüyorum.", "Sessiz olun lütfen :)", "Adın ne?",
   "Pizzayı severim.", "Bugün cuma mı?", "İngilizce konuşma pratiği yapıyorum!", "Sonra görüşürüz!"
 ];
-const MESSAGES = [                      // the random message (top bubble)
+
+const MESSAGES = [
   "Ne zaman beni ziyaret edeceksin?",
   "Haftasonu müsait misin? Hadi buluşalım!",
   "Ödevini yapmayı bitirdin mi?",
@@ -114,51 +415,97 @@ const MESSAGES = [                      // the random message (top bubble)
   "İngilizce çalışmama yardım eder misin?",
   "Hadi yarın sinemaya gidelim, olur mu??"
 ];
-const FIXED_REPLY = "Um... I can't... But it was nice talking to you.";   // the fixed answer (bottom bubble)
-const POPUP_EVERY = 10000, POPUP_STAYS = 4000;                          // milliseconds
-const DANCE_EVERY = 30000, DANCE_FOR = 20000;              // the single dancer (paused during halay), milliseconds
-const HALAY_EVERY = 180000, HALAY_FOR = 60000;           // halay every 3 minutes, lasts 1 minute (milliseconds)
-const HALAY_SPEED = 70, HALAY_BEAT = 800;                // circling speed (pixels/second) and length of one kick cycle (milliseconds)
-const GIRL_NAMES = new Set(["Emine","Melis","Zeynep","Gamze","Yaren","Öykü","Nisanur","Nisa","Eylül","Elif","Saliha","Sümeyye","Ecrin","Beren","Kader","İrem","Elifsena","Kamile","Gizem","Aişe","Irmak","Hatice","Piraye","Ada","Simay","Sudenur","Meyra","Seher","Hafize","Yağmur","Eysa","Nur","Zehra","Hale","Ela","Kevser","Selin","Hayrunnisa","Esma","Duygu","Duru","Göksu","Hümeyra","Ceylin","Meryem","Berfin","Ece","Ebrar"].map(n => n.toLocaleLowerCase("tr")));
-const SHIRTS = ["#e4572e","#17bebb","#ffc914","#76b041","#a45ee5","#ff8fa3","#4d9de0","#f08a4b"];
-/* ============================ */
+
+const FIXED_REPLY = "Um... I can't... But it was nice talking to you.";
+
+const CONFIG = {
+  POPUP_EVERY: 10000,
+  POPUP_STAYS: 4000,
+  DANCE_EVERY: 30000,
+  DANCE_FOR: 20000,
+  HALAY_EVERY: 180000,
+  HALAY_FOR: 60000,
+  HALAY_SPEED: 70,
+  HALAY_BEAT: 800,
+  ARRIVAL_WINDOW_MS: 12000,
+  ARRIVAL_GAP_MAX_MS: 900
+};
+
+const GIRL_NAMES = new Set([
+  "emine", "melis", "zeynep", "gamze", "yaren", "öykü", "nisanur", "nisa", "eylül", "elif",
+  "saliha", "sümeyye", "ecrin", "beren", "kader", "irem", "elifsena", "kamile", "gizem", "aişe",
+  "mira", "sude", "nazlı", "ayla", "aysu", "rumeysa", "dilara", "eda", "dilan", "berfin", "hümeyra",
+  "selin", "esma", "hayrunnisa", "deniz", "leyla", "göksu", "zehra", "kevser", "meryem", "simay",
+  "meyra", "seher", "hafize", "sudenur", "yasemin", "sena", "nisa", "meryem", "melisa", "aslı", "buse"
+]);
+
+const SHIRTS = ["#e4572e", "#17bebb", "#ffc914", "#76b041", "#a45ee5", "#ff8fa3", "#4d9de0", "#f08a4b"];
 
 const scene = document.getElementById("scene");
-const pathEl = document.getElementById("path");
+const menu = document.getElementById("menu");
+const chat = document.getElementById("chat");
+const input = document.getElementById("newName");
 const walkers = [];
-let expected = 0, activeBubbles = 0;
+const state = {
+  current: null,
+  timers: [],
+  expected: 0,
+  activeBubbles: 0,
+  halay: false,
+  halayStart: 0,
+  halayEnd: 0,
+  nextHalay: Infinity,
+  ellipse: null,
+  lastFrame: performance.now()
+};
+
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-
 const HAIR = "#3b2a20";
-const isGirl = name => GIRL_NAMES.has(name.trim().split(/\s+/)[0].toLocaleLowerCase("tr"));
 
-function svg(shirt, skin, view = "side", girl = false){
+function sanitizeName(raw) {
+  const value = String(raw || "").trim().replace(/\s+/g, " ");
+  return value;
+}
+
+function isGirl(name) {
+  const cleaned = sanitizeName(name).split(/\s+/)[0].toLocaleLowerCase("tr");
+  return GIRL_NAMES.has(cleaned);
+}
+
+function svg(shirt, skin, view = "side", girl = false) {
   const head = `<svg class="person p-${view}" viewBox="0 0 90 150" xmlns="http://www.w3.org/2000/svg">`;
-  if (view === "front") return head + `
-    ${girl ? `<path d="M25 36 Q22 19 45 19 Q68 19 65 36 L68 88 Q45 96 22 88 Z" fill="${HAIR}"/>` : ""}
-    <g class="fl"><rect x="33" y="96" width="12" height="46" rx="6" fill="#33415c"/></g>
-    <g class="fr"><rect x="46" y="96" width="12" height="46" rx="6" fill="#4a5a7a"/></g>
-    <g class="fal"><rect x="22" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
-    <g class="far"><rect x="58" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
-    <rect x="29" y="62" width="32" height="42" rx="10" fill="${shirt}"/>
-    <circle cx="45" cy="42" r="19" fill="${skin}"/>
-    <circle cx="38" cy="41" r="2.6" fill="#222"/><circle cx="52" cy="41" r="2.6" fill="#222"/>
-    <path d="M39 50 q6 5 12 0" stroke="#222" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <path d="M26 40 q-1 -25 19 -25 q20 0 19 25 q-7 -14 -19 -14 q-12 0 -19 14z" fill="${HAIR}"/>
-    ${girl ? `<path d="M26 50 Q22 74 29 96 L38 94 Q32 72 35 54 Z" fill="${HAIR}"/><path d="M64 50 Q68 74 61 96 L52 94 Q58 72 55 54 Z" fill="${HAIR}"/>` : ""}
-  </svg>`;
-  if (view === "back") return head + `
-    <g class="fl"><rect x="33" y="96" width="12" height="46" rx="6" fill="#33415c"/></g>
-    <g class="fr"><rect x="46" y="96" width="12" height="46" rx="6" fill="#4a5a7a"/></g>
-    <g class="fal"><rect x="22" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
-    <g class="far"><rect x="58" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
-    <rect x="29" y="62" width="32" height="42" rx="10" fill="${shirt}"/>
-    <circle cx="45" cy="42" r="19" fill="${skin}"/>
-    ${girl
-      ? `<circle cx="45" cy="42" r="19.5" fill="${HAIR}"/><path d="M26 40 Q23 70 31 98 Q45 104 59 98 Q67 70 64 40 Z" fill="${HAIR}"/>`
-      : `<path d="M26 44 q-1 -29 19 -29 q20 0 19 29 q0 8 -4 10 q-15 6 -30 0 q-4 -2 -4 -10z" fill="${HAIR}"/>`}
-  </svg>`;
+
+  if (view === "front") {
+    return head + `
+      ${girl ? `<path d="M25 36 Q22 19 45 19 Q68 19 65 36 L68 88 Q45 96 22 88 Z" fill="${HAIR}"/>` : ""}
+      <g class="fl"><rect x="33" y="96" width="12" height="46" rx="6" fill="#33415c"/></g>
+      <g class="fr"><rect x="46" y="96" width="12" height="46" rx="6" fill="#4a5a7a"/></g>
+      <g class="fal"><rect x="22" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
+      <g class="far"><rect x="58" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
+      <rect x="29" y="62" width="32" height="42" rx="10" fill="${shirt}"/>
+      <circle cx="45" cy="42" r="19" fill="${skin}"/>
+      <circle cx="38" cy="41" r="2.6" fill="#222"/><circle cx="52" cy="41" r="2.6" fill="#222"/>
+      <path d="M39 50 q6 5 12 0" stroke="#222" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M26 40 q-1 -25 19 -25 q20 0 19 25 q-7 -14 -19 -14 q-12 0 -19 14z" fill="${HAIR}"/>
+      ${girl ? `<path d="M26 50 Q22 74 29 96 L38 94 Q32 72 35 54 Z" fill="${HAIR}"/><path d="M64 50 Q68 74 61 96 L52 94 Q58 72 55 54 Z" fill="${HAIR}"/>` : ""}
+    </svg>`;
+  }
+
+  if (view === "back") {
+    return head + `
+      <g class="fl"><rect x="33" y="96" width="12" height="46" rx="6" fill="#33415c"/></g>
+      <g class="fr"><rect x="46" y="96" width="12" height="46" rx="6" fill="#4a5a7a"/></g>
+      <g class="fal"><rect x="22" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
+      <g class="far"><rect x="58" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
+      <rect x="29" y="62" width="32" height="42" rx="10" fill="${shirt}"/>
+      <circle cx="45" cy="42" r="19" fill="${skin}"/>
+      ${girl
+        ? `<circle cx="45" cy="42" r="19.5" fill="${HAIR}"/><path d="M26 40 Q23 70 31 98 Q45 104 59 98 Q67 70 64 40 Z" fill="${HAIR}"/>`
+        : `<path d="M26 44 q-1 -29 19 -29 q20 0 19 29 q0 8 -4 10 q-15 6 -30 0 q-4 -2 -4 -10z" fill="${HAIR}"/>`}
+    </svg>`;
+  }
+
   return head + `
     ${girl ? `<path d="M32 30 C17 48 17 84 24 108 L43 106 L46 56 Z" fill="${HAIR}"/>` : ""}
     <g class="leg"><rect x="38" y="96" width="12" height="46" rx="6" fill="#33415c"/></g>
@@ -172,230 +519,421 @@ function svg(shirt, skin, view = "side", girl = false){
     <path d="M26 38 q2 -24 24 -22 q16 2 15 22 q-8 -12 -39 0z" fill="${HAIR}"/>
   </svg>`;
 }
+
 const allViews = (shirt, skin, girl) => svg(shirt, skin, "side", girl) + svg(shirt, skin, "front", girl) + svg(shirt, skin, "back", girl);
 
-function addStudent(name, i = walkers.length){
+function addStudent(name, index = walkers.length) {
+  const cleanName = sanitizeName(name);
+  if (!cleanName) return;
+
   const el = document.createElement("div");
   el.className = "walker";
   el.dataset.view = "side";
-  const skins = ["#f2c9a0","#d9a577","#b57b50","#8a5a3b"];
-  const shirt = SHIRTS[i % SHIRTS.length], skin = pick(skins), girl = isGirl(name);
+
+  const skins = ["#f2c9a0", "#d9a577", "#b57b50", "#8a5a3b"];
+  const shirt = SHIRTS[index % SHIRTS.length];
+  const skin = pick(skins);
+  const girl = isGirl(cleanName);
+
   el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl)}</div>`;
-  el.querySelector(".name").textContent = name;
+  el.querySelector(".name").textContent = cleanName;
   scene.appendChild(el);
+
   const w = {
-    el, name, shirt, skin, girl, dir: Math.random() < .5 ? 1 : -1,
-    x: Math.random() < .5 ? -80 : innerWidth, speed: rand(30, 70),
-    lane: (i * 0.618034) % 1, dance: null, k: 0, speaking: false, nextTalk: performance.now() + rand(3000, 3000 + Math.max(6000, expected * 1000)),
-    hk: 0, view: "side", hal: false
+    el,
+    name: cleanName,
+    shirt,
+    skin,
+    girl,
+    dir: Math.random() < 0.5 ? 1 : -1,
+    x: Math.random() < 0.5 ? -80 : innerWidth,
+    speed: rand(30, 70),
+    lane: (index * 0.618034) % 1,
+    dance: null,
+    k: 0,
+    speaking: false,
+    nextTalk: performance.now() + rand(3000, 3000 + Math.max(6000, state.expected * 1000)),
+    hk: 0,
+    view: "side",
+    hal: false
   };
-  const q = (v, sel) => el.querySelector(`.p-${v} ${sel}`);
+
+  const q = (view, selector) => el.querySelector(`.p-${view} ${selector}`);
   w.parts = {
-    side:  { svg: el.querySelector(".p-side"),  leg: q("side", ".leg:not(.b)"), legb: q("side", ".leg.b"), arm: q("side", ".arm:not(.arm2)") },
-    front: { svg: el.querySelector(".p-front"), fl: q("front", ".fl"), fr: q("front", ".fr"), fal: q("front", ".fal"), far: q("front", ".far") },
-    back:  { svg: el.querySelector(".p-back"),  fl: q("back", ".fl"),  fr: q("back", ".fr"),  fal: q("back", ".fal"),  far: q("back", ".far") }
+    side: {
+      svg: el.querySelector(".p-side"),
+      leg: q("side", ".leg:not(.b)"),
+      legb: q("side", ".leg.b"),
+      arm: q("side", ".arm:not(.arm2)")
+    },
+    front: {
+      svg: el.querySelector(".p-front"),
+      fl: q("front", ".fl"),
+      fr: q("front", ".fr"),
+      fal: q("front", ".fal"),
+      far: q("front", ".far")
+    },
+    back: {
+      svg: el.querySelector(".p-back"),
+      fl: q("back", ".fl"),
+      fr: q("back", ".fr"),
+      fal: q("back", ".fal"),
+      far: q("back", ".far")
+    }
   };
+
   walkers.push(w);
 }
 
-function say(w){
-  if (activeBubbles >= 4){ w.nextTalk = performance.now() + rand(1000, 3000); return; }   // never more than 4 bubbles at once
-  const b = w.el.querySelector(".bubble"), dur = rand(2500, 4000);
-  b.textContent = pick(SAYINGS);
-  b.classList.add("show"); w.speaking = true; activeBubbles++;
-  setTimeout(() => { b.classList.remove("show"); w.speaking = false; activeBubbles = Math.max(0, activeBubbles - 1); }, dur);
-}
-
-/* ---- halay: one big ellipse, holding hands, circling, everybody facing the centre ---- */
-let halay = false, halayStart = 0, halayEnd = 0, nextHalay = Infinity, ell = null;
-function getBase(){ const n = Math.max(walkers.length, expected); return n <= 10 ? 1 : Math.max(0.55, 1 - (n - 10) * 0.017); }
-
-function ensureEllipse(n){                       // ellipse on the ground + a table to space people evenly along it
-  const key = n + "|" + innerWidth + "|" + innerHeight;
-  if (ell && ell.key === key) return ell;
-  const rx = innerWidth * 0.4, ry = innerHeight * 0.17, cx = innerWidth / 2, cy = innerHeight * 0.76, K = 720;
-  const th = new Float64Array(K + 1), cum = new Float64Array(K + 1);
-  for (let k = 0; k <= K; k++){
-    th[k] = 2 * Math.PI * k / K;
-    if (k) cum[k] = cum[k - 1] + Math.hypot(rx * (Math.cos(th[k]) - Math.cos(th[k - 1])), ry * (Math.sin(th[k]) - Math.sin(th[k - 1])));
+function say(w) {
+  if (state.activeBubbles >= 4) {
+    w.nextTalk = performance.now() + rand(1000, 3000);
+    return;
   }
-  const P = cum[K], spacing = P / Math.max(1, n);
-  ell = { key, rx, ry, cx, cy, th, cum, P, hs: Math.min(1, Math.max(0.5, spacing / 60)) };   // hs: shrink avatars if the ring is crowded
-  return ell;
+
+  const bubble = w.el.querySelector(".bubble");
+  const duration = rand(2500, 4000);
+  bubble.textContent = pick(SAYINGS);
+  bubble.classList.add("show");
+  w.speaking = true;
+  state.activeBubbles += 1;
+
+  setTimeout(() => {
+    bubble.classList.remove("show");
+    w.speaking = false;
+    state.activeBubbles = Math.max(0, state.activeBubbles - 1);
+  }, duration);
 }
-function ellipseAngle(e, d){                     // distance along the ellipse -> angle
+
+function ensureEllipse(n) {
+  const key = `${n}|${innerWidth}|${innerHeight}`;
+  if (state.ellipse && state.ellipse.key === key) return state.ellipse;
+
+  const rx = innerWidth * 0.4;
+  const ry = innerHeight * 0.17;
+  const cx = innerWidth / 2;
+  const cy = innerHeight * 0.76;
+  const K = 720;
+  const th = new Float64Array(K + 1);
+  const cum = new Float64Array(K + 1);
+
+  for (let k = 0; k <= K; k++) {
+    th[k] = 2 * Math.PI * k / K;
+    if (k) {
+      cum[k] = cum[k - 1] + Math.hypot(
+        rx * (Math.cos(th[k]) - Math.cos(th[k - 1])),
+        ry * (Math.sin(th[k]) - Math.sin(th[k - 1]))
+      );
+    }
+  }
+
+  const P = cum[K];
+  const spacing = P / Math.max(1, n);
+  state.ellipse = { key, rx, ry, cx, cy, th, cum, P, hs: Math.min(1, Math.max(0.5, spacing / 60)) };
+  return state.ellipse;
+}
+
+function ellipseAngle(e, d) {
   d = ((d % e.P) + e.P) % e.P;
-  let lo = 0, hi = e.th.length - 1;
-  while (hi - lo > 1){ const m = (lo + hi) >> 1; if (e.cum[m] <= d) lo = m; else hi = m; }
+  let lo = 0;
+  let hi = e.th.length - 1;
+
+  while (hi - lo > 1) {
+    const m = (lo + hi) >> 1;
+    if (e.cum[m] <= d) lo = m;
+    else hi = m;
+  }
+
   const f = (d - e.cum[lo]) / ((e.cum[hi] - e.cum[lo]) || 1);
   return e.th[lo] + f * (e.th[hi] - e.th[lo]);
 }
 
-/* every dancer uses the same phase p, so all kicks and arm movements are simultaneous */
-function pose(w, view, p){
-  const s = Math.sin(2 * Math.PI * p), s2 = Math.sin(4 * Math.PI * p), P = w.parts[view];
-  P.svg.style.transform = `translate(${3 * s}px, ${-5 * Math.abs(s)}px)`;           // little hop
-  if (view === "side"){
-    P.leg.style.transform  = `rotate(${-32 * Math.max(0, s)}deg)`;
+function pose(w, view, p) {
+  const s = Math.sin(2 * Math.PI * p);
+  const s2 = Math.sin(4 * Math.PI * p);
+  const P = w.parts[view];
+
+  P.svg.style.transform = `translate(${3 * s}px, ${-5 * Math.abs(s)}px)`;
+
+  if (view === "side") {
+    P.leg.style.transform = `rotate(${-32 * Math.max(0, s)}deg)`;
     P.legb.style.transform = `rotate(${-32 * Math.max(0, -s)}deg)`;
-    P.arm.style.transform  = `rotate(${-(48 + 16 * s2)}deg)`;
+    P.arm.style.transform = `rotate(${-(48 + 16 * s2)}deg)`;
   } else {
-    P.fl.style.transform  = `rotate(${32 * Math.max(0, s)}deg)`;                   // left leg kicks, then right leg
-    P.fr.style.transform  = `rotate(${-32 * Math.max(0, -s)}deg)`;
-    P.fal.style.transform = `rotate(${62 + 20 * s2}deg)`;                           // arms reach out to the neighbours and pull in
+    P.fl.style.transform = `rotate(${32 * Math.max(0, s)}deg)`;
+    P.fr.style.transform = `rotate(${-32 * Math.max(0, -s)}deg)`;
+    P.fal.style.transform = `rotate(${62 + 20 * s2}deg)`;
     P.far.style.transform = `rotate(${-(62 + 20 * s2)}deg)`;
   }
 }
-function clearPose(w){ for (const v in w.parts) for (const k in w.parts[v]) w.parts[v][k].style.transform = ""; }
 
-function checkHalay(now){
-  if (!menu.classList.contains("gone")) return;
-  if (!halay && now >= nextHalay && walkers.length){
-    halay = true; halayStart = now; halayEnd = now + HALAY_FOR; nextHalay = now + HALAY_EVERY;
-    for (const w of walkers){ w.dance = null; w.el.classList.remove("dancing"); }   // the single dancer stops
-  } else if (halay && now >= halayEnd){ halay = false; }
+function clearPose(w) {
+  for (const view in w.parts) {
+    const group = w.parts[view];
+    for (const key in group) {
+      if (group[key] && typeof group[key].style !== "undefined") {
+        group[key].style.transform = "";
+      }
+    }
+    if (group.svg) {
+      group.svg.style.transform = "";
+    }
+  }
 }
 
-let last = performance.now();
-function tick(now){
-  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+function checkHalay(now) {
+  if (!menu.classList.contains("gone")) return;
+
+  if (!state.halay && now >= state.nextHalay && walkers.length) {
+    state.halay = true;
+    state.halayStart = now;
+    state.halayEnd = now + CONFIG.HALAY_FOR;
+    state.nextHalay = now + CONFIG.HALAY_EVERY;
+
+    for (const w of walkers) {
+      w.dance = null;
+      w.el.classList.remove("dancing");
+    }
+  } else if (state.halay && now >= state.halayEnd) {
+    state.halay = false;
+  }
+}
+
+function tick(now) {
+  const dt = Math.min(0.1, (now - state.lastFrame) / 1000);
+  state.lastFrame = now;
+
   checkHalay(now);
-  const n = Math.max(walkers.length, expected);
-  const base = getBase();   // more students = smaller avatars
+
+  const n = Math.max(walkers.length, state.expected);
+  const base = n <= 10 ? 1 : Math.max(0.55, 1 - (n - 10) * 0.017);
   const e0 = ensureEllipse(walkers.length || 1);
-  const rotD = (Math.min(now, halayEnd) - halayStart) * HALAY_SPEED / 1000;        // how far the circle has turned
-  const beat = (now / HALAY_BEAT) % 1;
-  for (let i = 0; i < walkers.length; i++){
+  const rotD = (Math.min(now, state.halayEnd) - state.halayStart) * CONFIG.HALAY_SPEED / 1000;
+  const beat = (now / CONFIG.HALAY_BEAT) % 1;
+
+  for (let i = 0; i < walkers.length; i++) {
     const w = walkers[i];
-    if (w.dance && now > w.dance){ w.dance = null; w.el.classList.remove("dancing"); }
-    w.k += ((w.dance ? 1 : 0) - w.k) * Math.min(1, dt * 3);          // 0 = walking, 1 = dancing up front
-    w.hk = Math.min(1, Math.max(0, w.hk + (halay ? 1 : -1) * dt / 3)); // 0 = walking, 1 = in the halay ring (3 s to get there)
+
+    if (w.dance && now > w.dance) {
+      w.dance = null;
+      w.el.classList.remove("dancing");
+    }
+
+    w.k += ((w.dance ? 1 : 0) - w.k) * Math.min(1, dt * 3);
+    w.hk = Math.min(1, Math.max(0, w.hk + (state.halay ? 1 : -1) * dt / 3));
     const e = w.hk * w.hk * (3 - 2 * w.hk);
-    let L = w.lane + (1 - w.lane) * w.k;                             // dancer moves to the front lane
-    let tx = 0, th = 0;
-    if (w.hk > 0){
-      th = ellipseAngle(e0, i * e0.P / walkers.length + rotD);       // my place on the ellipse
+
+    let L = w.lane + (1 - w.lane) * w.k;
+    let tx = 0;
+    let th = 0;
+
+    if (w.hk > 0) {
+      th = ellipseAngle(e0, i * e0.P / walkers.length + rotD);
       tx = e0.cx + e0.rx * Math.cos(th) - 45;
       const tf = e0.cy + e0.ry * Math.sin(th);
       L += ((tf - innerHeight * 0.52) / (innerHeight * 0.42) - L) * e;
     }
+
     const s = base * (0.75 + 0.25 * L) * (1 + 0.7 * w.k) * (1 + (e0.hs - 1) * e);
     const h = 150 * s;
-    if (halay || w.hk > 0){
-      /* x stays where it was; the ring position is blended in (and out again at the end) */
-    } else if (w.dance){
-      w.x += (innerWidth / 2 - 45 - w.x) * Math.min(1, dt * 2);      // glide to the middle of the screen
+
+    if (state.halay || w.hk > 0) {
+      // ring state handled below
+    } else if (w.dance) {
+      w.x += (innerWidth / 2 - 45 - w.x) * Math.min(1, dt * 2);
     } else {
       w.x += w.dir * w.speed * s * dt;
-      if (w.x < -90) w.dir = 1; else if (w.x < -10 && w.dir < 0) w.dir = 1;
-      if (w.x > innerWidth) w.dir = -1; else if (w.x > innerWidth - 80 && w.dir > 0) w.dir = -1;
+      if (w.x < -90) w.dir = 1;
+      else if (w.x < -10 && w.dir < 0) w.dir = 1;
+      if (w.x > innerWidth) w.dir = -1;
+      else if (w.x > innerWidth - 80 && w.dir > 0) w.dir = -1;
     }
+
     const px = w.hk > 0 ? w.x + (tx - w.x) * e : w.x;
-    const arrived = halay && w.hk >= 1;
+    const arrived = state.halay && w.hk >= 1;
     let view = "side";
-    if (arrived){
-      const fx = -Math.cos(th), fy = -Math.sin(th);                  // direction towards the centre of the ring
-      if (fy > 0.6) view = "front";                                  // far side of the ring: we see their faces
-      else if (fy < -0.6) view = "back";                             // near side of the ring: we see their backs
-      else w.dir = fx > 0 ? 1 : -1;                                  // left/right ends: profile, looking at the centre
-    } else if (w.hk > 0){
-      const d = (halay ? tx : w.x) - px;
-      if (Math.abs(d) > 1) w.dir = d > 0 ? 1 : -1;                   // walking to / from the ring
+
+    if (arrived) {
+      const fx = -Math.cos(th);
+      const fy = -Math.sin(th);
+      if (fy > 0.6) view = "front";
+      else if (fy < -0.6) view = "back";
+      else w.dir = fx > 0 ? 1 : -1;
+    } else if (w.hk > 0) {
+      const d = (state.halay ? tx : w.x) - px;
+      if (Math.abs(d) > 1) w.dir = d > 0 ? 1 : -1;
     }
-    if (view !== w.view){ w.view = view; w.el.dataset.view = view; }
-    if (arrived !== w.hal){ w.hal = arrived; w.el.classList.toggle("hal", arrived); if (!arrived) clearPose(w); }
+
+    if (view !== w.view) {
+      w.view = view;
+      w.el.dataset.view = view;
+    }
+
+    if (arrived !== w.hal) {
+      w.hal = arrived;
+      w.el.classList.toggle("hal", arrived);
+      if (!arrived) clearPose(w);
+    }
+
     w.el.classList.toggle("alt", arrived && i % 2 === 1);
+
     if (arrived) pose(w, view, beat);
+
     const foot = innerHeight * 0.52 + L * innerHeight * 0.42;
-    w.el.style.height = h + "px";
+    w.el.style.height = `${h}px`;
     w.el.style.transform = `translate(${px}px, ${foot - h}px)`;
     w.el.style.zIndex = w.speaking ? 9000 : (w.dance ? 8500 : Math.round(foot));
     w.el.querySelector(".flipper").style.transform = `scale(${view === "side" && w.dir < 0 ? -s : s}, ${s})`;
-    if (now > w.nextTalk){ say(w); w.nextTalk = now + rand(0.7, 1.3) * Math.max(5000, n * 1400); }
+
+    if (now > w.nextTalk) {
+      say(w);
+      w.nextTalk = now + rand(0.7, 1.3) * Math.max(5000, n * 1400);
+    }
   }
+
   requestAnimationFrame(tick);
 }
 
-/* chat pop-up: two random students on screen, random message, fixed answer */
-const chat = document.getElementById("chat");
-const faceSvg = w => svg(w.shirt, w.skin, "front", w.girl).replace(/class="person[^"]*" viewBox="0 0 90 150"/, 'viewBox="14 8 62 62"');
-let chatHide = null;
-function showChat(){
+function showChat() {
   if (!menu.classList.contains("gone") || walkers.length < 2) return;
+
   const a = pick(walkers);
-  let b; do { b = pick(walkers); } while (b === a);
+  let b = pick(walkers);
+  while (b === a) {
+    b = pick(walkers);
+  }
+
   const [m1, m2] = chat.querySelectorAll(".msg");
   m1.querySelector(".av").innerHTML = faceSvg(a);
   m1.querySelector("b").textContent = a.name;
   m1.querySelector("span").textContent = pick(MESSAGES);
+
   m2.querySelector(".av").innerHTML = faceSvg(b);
   m2.querySelector("b").textContent = b.name;
   m2.querySelector("span").textContent = FIXED_REPLY;
-  chat.classList.add("show");
-  clearTimeout(chatHide);
-  chatHide = setTimeout(() => chat.classList.remove("show"), POPUP_STAYS);
-}
-setInterval(showChat, POPUP_EVERY);
 
-/* every DANCE_EVERY ms a random student walks to the front and dances for DANCE_FOR ms */
-function startDance(){
-  if (!menu.classList.contains("gone") || halay) return;           // no single dancer during halay
+  chat.classList.add("show");
+  chat.setAttribute("aria-hidden", "false");
+  clearTimeout(chatHide);
+  chatHide = setTimeout(() => {
+    chat.classList.remove("show");
+    chat.setAttribute("aria-hidden", "true");
+  }, CONFIG.POPUP_STAYS);
+}
+
+const chatHide = null;
+function faceSvg(w) {
+  return svg(w.shirt, w.skin, "front", w.girl).replace(/class="person[^\"]*" viewBox="0 0 90 150"/, 'viewBox="14 8 62 62"');
+}
+
+function startDance() {
+  if (!menu.classList.contains("gone") || state.halay) return;
+
   const free = walkers.filter(w => !w.dance);
-  if (!free.length || free.length < walkers.length) return;           // wait if someone is already dancing
+  if (!free.length || free.length < walkers.length) return;
+
   const w = pick(free);
-  w.dance = performance.now() + DANCE_FOR;
+  w.dance = performance.now() + CONFIG.DANCE_FOR;
   w.el.classList.add("dancing");
 }
-setInterval(startDance, DANCE_EVERY);
 
-/* students are stored per class in this browser, so last-minute changes are remembered */
-let current = null, timers = [];
-const menu = document.getElementById("menu");
-function save(){ try{ localStorage.setItem("qw-"+current, JSON.stringify(walkers.map(w => w.name))); }catch(e){} }
+function saveClass() {
+  if (!state.current) return;
 
-function openClass(c){
-  closeClass();
-  current = c;
-  let names = CLASSES[c];
-  try{ const s = JSON.parse(localStorage.getItem("qw-"+c)); if (Array.isArray(s)) names = s; }catch(e){}
-  expected = names.length;
-  menu.classList.add("gone");
-  nextHalay = performance.now() + HALAY_EVERY;                     // first halay 3 minutes after the class opens
-  document.getElementById("title").firstChild.textContent = "Konuşma sınavı devam ediyor – " + c;
-  const gap = Math.min(900, 12000 / names.length);   // everyone has arrived within about 12 seconds
-  names.forEach((n, i) => timers.push(setTimeout(() => addStudent(n, i), 400 + i * gap)));  // they arrive one by one
+  try {
+    localStorage.setItem("qw-" + state.current, JSON.stringify(walkers.map(w => w.name)));
+  } catch (error) {
+    // no-op: storage may be unavailable in some browsers
+  }
 }
-function closeClass(){
-  timers.forEach(clearTimeout); timers = [];
+
+function openClass(className) {
+  closeClass();
+  state.current = className;
+
+  let names = Array.isArray(CLASSES[className]) ? [...CLASSES[className]] : [];
+
+  try {
+    const saved = JSON.parse(localStorage.getItem("qw-" + className));
+    if (Array.isArray(saved) && saved.length) names = saved;
+  } catch (error) {
+    // ignore malformed saved data
+  }
+
+  state.expected = names.length;
+  menu.classList.add("gone");
+  state.nextHalay = performance.now() + CONFIG.HALAY_EVERY;
+
+  const titleNode = document.getElementById("title").firstChild;
+  if (titleNode) titleNode.textContent = "Konuşma sınavı devam ediyor – " + className;
+
+  const gap = Math.min(CONFIG.ARRIVAL_GAP_MAX_MS, CONFIG.ARRIVAL_WINDOW_MS / Math.max(1, names.length));
+  names.forEach((name, index) => {
+    state.timers.push(setTimeout(() => addStudent(name, index), 400 + index * gap));
+  });
+}
+
+function closeClass() {
+  state.timers.forEach(clearTimeout);
+  state.timers = [];
+
   walkers.splice(0).forEach(w => w.el.remove());
   chat.classList.remove("show");
-  expected = 0; activeBubbles = 0;
-  halay = false; nextHalay = Infinity;
+  chat.setAttribute("aria-hidden", "true");
+
+  state.expected = 0;
+  state.activeBubbles = 0;
+  state.halay = false;
+  state.nextHalay = Infinity;
+  state.halayStart = 0;
+  state.halayEnd = 0;
+  state.current = null;
   menu.classList.remove("gone");
 }
-Object.keys(CLASSES).forEach(c => {
-  const b = document.createElement("button");
-  b.textContent = c; b.onclick = () => openClass(c);
-  document.getElementById("classes").appendChild(b);
-});
-document.getElementById("back").onclick = closeClass;
 
-const input = document.getElementById("newName");
-function addFromInput(){
-  const n = input.value.trim();
-  if (!n) return;
-  addStudent(n); input.value = ""; save();
+function addFromInput() {
+  const name = sanitizeName(input.value);
+  if (!name) return;
+
+  addStudent(name, walkers.length);
+  input.value = "";
+  saveClass();
 }
-document.getElementById("add").onclick = addFromInput;
-input.addEventListener("keydown", e => { if (e.key === "Enter") addFromInput(); });
-document.getElementById("remove").onclick = () => { const w = walkers.pop(); if (w) w.el.remove(); save(); };
-const panel = document.getElementById("panel");
-document.getElementById("hide").onclick = () => panel.classList.add("hidden");
-addEventListener("keydown", e => {
-  if (e.target === input) return;
-  if (e.key.toLowerCase() === "h") panel.classList.toggle("hidden");
+
+Object.keys(CLASSES).forEach(className => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = className;
+  button.addEventListener("click", () => openClass(className));
+  document.getElementById("classes").appendChild(button);
 });
 
+document.getElementById("back").addEventListener("click", closeClass);
+document.getElementById("add").addEventListener("click", addFromInput);
+document.getElementById("remove").addEventListener("click", () => {
+  const w = walkers.pop();
+  if (w) {
+    w.el.remove();
+    saveClass();
+  }
+});
+
+input.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    addFromInput();
+  }
+});
+
+const panel = document.getElementById("panel");
+document.getElementById("hide").addEventListener("click", () => panel.classList.add("hidden"));
+
+addEventListener("keydown", event => {
+  if (event.target === input) return;
+  if (event.key.toLowerCase() === "h") panel.classList.toggle("hidden");
+});
+
+setInterval(showChat, CONFIG.POPUP_EVERY);
+setInterval(startDance, CONFIG.DANCE_EVERY);
 requestAnimationFrame(tick);
 </script>
 </body>
