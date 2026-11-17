@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiet Walk</title>
+<style>
+  :root{--sky:#cfe8f3;--grass:#9fcf8a;--path:#e9dcc0;--ink:#2b3a42;--bubble:#fffdf6}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:"Trebuchet MS",Verdana,sans-serif;color:var(--ink)}
+  #scene{position:fixed;inset:0;background:linear-gradient(var(--sky) 0 38%,var(--grass) 38% 100%)}
+  #path{position:absolute;left:0;right:0;top:52%;bottom:6%;background:var(--path);border-top:6px solid #d3c29c;border-bottom:6px solid #d3c29c}
+  #title{position:absolute;top:14px;left:0;right:0;text-align:center;font-size:clamp(18px,3vw,34px);font-weight:bold}
+  #title small{display:block;font-size:.45em;font-weight:normal;opacity:.75}
+  .walker{position:absolute;width:90px;will-change:transform}
+  .flipper{position:absolute;bottom:0;left:50%;width:90px;height:150px;margin-left:-45px;transform-origin:50% 100%}
+  .flip{transform:scaleX(-1)}
+  .person{position:absolute;inset:0}
+  .name{position:absolute;left:50%;top:-6px;transform:translateX(-50%);background:var(--ink);color:#fff;
+        padding:2px 10px;border-radius:12px;font-size:13px;white-space:nowrap}
+  .bubble{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:34px;background:var(--bubble);
+        border:2px solid var(--ink);border-radius:14px;padding:6px 12px;font-size:15px;width:max-content;max-width:210px;
+        text-align:center;opacity:0;transition:opacity .3s;pointer-events:none;z-index:5}
+  .bubble.show{opacity:1}
+  .leg{transform-origin:45px 98px;animation:swing .7s ease-in-out infinite alternate}
+  .leg.b{animation-delay:-.7s;animation-direction:alternate-reverse}
+  .arm{transform-origin:45px 68px;animation:swing .7s ease-in-out infinite alternate-reverse}
+  @keyframes swing{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+  #panel{position:fixed;right:10px;bottom:10px;background:rgba(255,255,255,.92);border-radius:12px;padding:10px;z-index:20;
+         display:flex;gap:6px;flex-wrap:wrap;max-width:340px;font-size:14px}
+  #panel input{flex:1;min-width:120px;padding:6px;border:1px solid #999;border-radius:8px;font-size:15px}
+  #panel button{padding:6px 10px;border:0;border-radius:8px;background:var(--ink);color:#fff;cursor:pointer;font-size:14px}
+  #panel.hidden{display:none}
+  #menu{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+        background:linear-gradient(var(--sky) 0 45%,var(--grass) 45% 100%)}
+  #menu h1{margin:0;font-size:clamp(26px,5vw,56px);text-align:center}
+  #classes{display:grid;grid-template-columns:repeat(2,minmax(130px,200px));gap:16px}
+  #classes button{padding:22px 10px;font-size:clamp(22px,4vw,36px);font-weight:bold;border:3px solid var(--ink);border-radius:18px;
+        background:var(--bubble);color:var(--ink);cursor:pointer;font-family:inherit}
+  #classes button:hover,#classes button:focus-visible{background:var(--ink);color:#fff;outline:none}
+  #menu.gone{display:none}
+  @media (prefers-reduced-motion:reduce){.leg,.arm{animation-duration:1.6s}}
+</style>
+</head>
+<body>
+<div id="menu"><h1>Elif hocanın sınıfları</h1><div id="classes"></div></div>
+<div id="scene">
+  <div id="title">Speaking exam in progress<small>Please stay quietly in your seat and watch our friends walk</small></div>
+  <div id="path"></div>
+</div>
+
+<div id="panel">
+  <input id="newName" placeholder="Add a student name" aria-label="Student name">
+  <button id="add">Add</button>
+  <button id="remove">Remove last</button>
+  <button id="back">Sınıflar</button>
+  <button id="hide">Hide (press H)</button>
+</div>
+
+<script>
+/* ====== EDIT THIS PART ====== */
+const CLASSES = {                       // put each class's real student names here
+  "9/F":  ["Ayşe", "Mehmet", "Zeynep", "Can", "Elif"],
+  "10/B": ["Ali", "Selin", "Burak", "Deniz", "Ece"],
+  "10/C": ["Kaan", "Melis", "Emre", "Defne", "Arda"],
+  "10/D": ["Yusuf", "İrem", "Berk", "Nehir", "Onur"]
+};
+const SAYINGS = [
+  "Shhh... exam time!", "I love English!", "Nice weather today.", "Good luck, everyone!",
+  "Hello, how are you?", "I'm just walking.", "Quiet please :)", "What's your name?",
+  "I like pizza.", "Is it Friday yet?", "I'm practicing my speaking!", "See you later!"
+];
+const SHIRTS = ["#e4572e","#17bebb","#ffc914","#76b041","#a45ee5","#ff8fa3","#4d9de0","#f08a4b"];
+/* ============================ */
+
+const scene = document.getElementById("scene");
+const pathEl = document.getElementById("path");
+const walkers = [];
+let expected = 0, activeBubbles = 0;
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+function svg(shirt, skin){
+  return `<svg class="person" viewBox="0 0 90 150" xmlns="http://www.w3.org/2000/svg">
+    <g class="leg"><rect x="38" y="96" width="12" height="46" rx="6" fill="#33415c"/></g>
+    <g class="leg b"><rect x="40" y="96" width="12" height="46" rx="6" fill="#4a5a7a"/></g>
+    <g class="arm"><rect x="40" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
+    <rect x="29" y="62" width="32" height="42" rx="10" fill="${shirt}"/>
+    <circle cx="45" cy="42" r="19" fill="${skin}"/>
+    <circle cx="52" cy="40" r="2.6" fill="#222"/>
+    <path d="M47 50 q6 5 11 0" stroke="#222" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M26 38 q2 -24 24 -22 q16 2 15 22 q-8 -12 -39 0z" fill="#3b2a20"/>
+  </svg>`;
+}
+
+function addStudent(name, i = walkers.length){
+  const el = document.createElement("div");
+  el.className = "walker";
+  const skins = ["#f2c9a0","#d9a577","#b57b50","#8a5a3b"];
+  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${svg(SHIRTS[i % SHIRTS.length], pick(skins))}</div>`;
+  el.querySelector(".name").textContent = name;
+  scene.appendChild(el);
+  const w = {
+    el, name, dir: Math.random() < .5 ? 1 : -1,
+    x: Math.random() < .5 ? -80 : innerWidth, speed: rand(30, 70),
+    lane: (i * 0.618034) % 1, speaking: false, nextTalk: performance.now() + rand(3000, 3000 + Math.max(6000, expected * 1000))
+  };
+  walkers.push(w);
+}
+
+function say(w){
+  if (activeBubbles >= 4){ w.nextTalk = performance.now() + rand(1000, 3000); return; }   // never more than 4 bubbles at once
+  const b = w.el.querySelector(".bubble"), dur = rand(2500, 4000);
+  b.textContent = pick(SAYINGS);
+  b.classList.add("show"); w.speaking = true; activeBubbles++;
+  setTimeout(() => { b.classList.remove("show"); w.speaking = false; activeBubbles = Math.max(0, activeBubbles - 1); }, dur);
+}
+
+let last = performance.now();
+function tick(now){
+  const dt = (now - last) / 1000; last = now;
+  const n = Math.max(walkers.length, expected);
+  const base = n <= 10 ? 1 : Math.max(0.55, 1 - (n - 10) * 0.017);   // more students = smaller avatars
+  for (const w of walkers){
+    const s = base * (0.75 + 0.25 * w.lane);                        // students further back look smaller
+    const h = 150 * s;
+    w.x += w.dir * w.speed * s * dt;
+    if (w.x < -90) w.dir = 1; else if (w.x < -10 && w.dir < 0) w.dir = 1;
+    if (w.x > innerWidth) w.dir = -1; else if (w.x > innerWidth - 80 && w.dir > 0) w.dir = -1;
+    const foot = innerHeight * 0.52 + w.lane * innerHeight * 0.42;
+    w.el.style.height = h + "px";
+    w.el.style.transform = `translate(${w.x}px, ${foot - h}px)`;
+    w.el.style.zIndex = w.speaking ? 9000 : Math.round(foot);
+    w.el.querySelector(".flipper").style.transform = `scale(${w.dir < 0 ? -s : s}, ${s})`;
+    if (now > w.nextTalk){ say(w); w.nextTalk = now + rand(0.7, 1.3) * Math.max(5000, n * 1400); }
+  }
+  requestAnimationFrame(tick);
+}
+
+/* students are stored per class in this browser, so last-minute changes are remembered */
+let current = null, timers = [];
+const menu = document.getElementById("menu");
+function save(){ try{ localStorage.setItem("qw-"+current, JSON.stringify(walkers.map(w => w.name))); }catch(e){} }
+
+function openClass(c){
+  closeClass();
+  current = c;
+  let names = CLASSES[c];
+  try{ const s = JSON.parse(localStorage.getItem("qw-"+c)); if (Array.isArray(s)) names = s; }catch(e){}
+  expected = names.length;
+  menu.classList.add("gone");
+  document.getElementById("title").firstChild.textContent = "Speaking exam in progress – " + c;
+  const gap = Math.min(900, 12000 / names.length);   // everyone has arrived within about 12 seconds
+  names.forEach((n, i) => timers.push(setTimeout(() => addStudent(n, i), 400 + i * gap)));  // they arrive one by one
+}
+function closeClass(){
+  timers.forEach(clearTimeout); timers = [];
+  walkers.splice(0).forEach(w => w.el.remove());
+  expected = 0; activeBubbles = 0;
+  menu.classList.remove("gone");
+}
+Object.keys(CLASSES).forEach(c => {
+  const b = document.createElement("button");
+  b.textContent = c; b.onclick = () => openClass(c);
+  document.getElementById("classes").appendChild(b);
+});
+document.getElementById("back").onclick = closeClass;
+
+const input = document.getElementById("newName");
+function addFromInput(){
+  const n = input.value.trim();
+  if (!n) return;
+  addStudent(n); input.value = ""; save();
+}
+document.getElementById("add").onclick = addFromInput;
+input.addEventListener("keydown", e => { if (e.key === "Enter") addFromInput(); });
+document.getElementById("remove").onclick = () => { const w = walkers.pop(); if (w) w.el.remove(); save(); };
+const panel = document.getElementById("panel");
+document.getElementById("hide").onclick = () => panel.classList.add("hidden");
+addEventListener("keydown", e => {
+  if (e.target === input) return;
+  if (e.key.toLowerCase() === "h") panel.classList.toggle("hidden");
+});
+
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
