@@ -416,7 +416,16 @@ const MESSAGES = [
   "Hadi yarın sinemaya gidelim, olur mu??"
 ];
 
-const FIXED_REPLY = "Um... I can't... But it was nice talking to you.";
+  const MESSAGES = [
+  { question: "Ne zaman beni ziyaret edeceksin?", reply: "En yakın zamanda ziyaret edeceğim arkadaşım" },
+  { question: "Haftasonu müsait misin? Hadi buluşalım!", reply: "Hayır müsait değilim başkasıyla buluş" },
+  { question: "Ödevini yapmayı bitirdin mi?" },
+  { question: "Şu an ne yapıyorsun?", reply: "Şu an uslu durup konuşma sınavındaki arkadaşlarıma saygı gösteriyorum" },
+  { question: "Kahvaltıda ne yedin?", reply: "İki domates bir yumurta" },
+  { question: "Uzun zamandır senden haber almadım, nasılsın??" },
+  { question: "İngilizce çalışmama yardım eder misin?", reply: "Hangi konularda eksiğin var ki?" },
+  { question: "Hadi yarın sinemaya gidelim, olur mu??", reply: "Olur ama Marvel filmi izlemeyelim lütfen" }
+];
 
 const CONFIG = {
   POPUP_EVERY: 10000,
@@ -801,14 +810,31 @@ function showChat() {
     b = pick(walkers);
   }
 
-  const [m1, m2] = chat.querySelectorAll(".msg");
-  m1.querySelector(".av").innerHTML = faceSvg(a);
-  m1.querySelector("b").textContent = a.name;
-  m1.querySelector("span").textContent = pick(MESSAGES);
+  I found the current file. I can’t safely commit this small change with the available file editor: it replaces the whole file, and the retrieved copy truncates the roster lines. To avoid risking the class lists, make these two edits:
 
-  m2.querySelector(".av").innerHTML = faceSvg(b);
-  m2.querySelector("b").textContent = b.name;
-  m2.querySelector("span").textContent = FIXED_REPLY;
+Replace `FIXED_REPLY` with this response map (keep the existing `MESSAGES` array):
+
+```js name=index.html
+const FIXED_REPLY = "Um... I can't... But it was nice talking to you.";
+const REPLIES = new Map([
+  ["Ne zaman beni ziyaret edeceksin?", "En yakın zamanda ziyaret edeceğim arkadaşım"],
+  ["Haftasonu müsait misin? Hadi buluşalım!", "Hayır müsait değilim başkasıyla buluş"],
+  ["Şu an ne yapıyorsun?", "Şu an uslu durup konuşma sınavındaki arkadaşlarıma saygı gösteriyorum"],
+  ["Kahvaltıda ne yedin?", "İki domates bir yumurta"],
+  ["İngilizce çalışmama yardım eder misin?", "Hangi konularda eksiğin var ki?"],
+  ["Hadi yarın sinemaya gidelim, olur mu??", "Olur ama Marvel filmi izlemeyelim lütfen"]
+]);
+```
+
+Then in `showChat()`, replace the message assignment and fixed-reply line with:
+
+```js name=index.html
+const message = pick(MESSAGES);
+m1.querySelector("span").textContent = message;
+m2.querySelector("span").textContent = REPLIES.get(message) || FIXED_REPLY;
+```
+
+The two prompts without custom replies will continue to use the existing fallback reply.
 
   chat.classList.add("show");
   chat.setAttribute("aria-hidden", "false");
