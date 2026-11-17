@@ -475,8 +475,17 @@ const EXCHANGES = [
   { q: "Bugün ders çalışacak mısın?", a: "Yarın kesin başlıyorum, bugün dinlenme günüm." },
   { q: "Hocam heyecanlandım, ne diyeceğimi unuttum", a: "Derin bir nefes al ve 'Actually, it depends' de, her kapıyı açar." },
   { q: "Bu kelime ne demek?", a: "Sözlük müyüm ben? Neyse, bu seferlik söyleyeyim..." },
-  { q: "Sence ben zeki miyim?", a: "Benimle konuştuğuna göre kesinlikle evet." },
+  { q: "Sence ben zeki miyim?", a: "Benimle konuştuğuna göre kesinlikle evet." }
 ];
+
+  let lastExchangeKey = null;
+
+function pickExchange() {
+  const available = EXCHANGES.filter(exchange => `${exchange.q}\0${exchange.a}` !== lastExchangeKey);
+  const exchange = pick(available.length ? available : EXCHANGES);
+  lastExchangeKey = `${exchange.q}\0${exchange.a}`;
+  return exchange;
+}
 
 const CONFIG = {
   POPUP_EVERY: 10000,
@@ -866,7 +875,7 @@ function showChat() {
   const [m1, m2] = chat.querySelectorAll(".msg");
   m1.querySelector(".av").innerHTML = faceSvg(a);
   m1.querySelector("b").textContent = a.name;
-  const exchange = pick(EXCHANGES);
+  const exchange = pickExchange();
   m1.querySelector("span").textContent = exchange.q;
 
   m2.querySelector(".av").innerHTML = faceSvg(b);
