@@ -436,7 +436,7 @@ const GIRL_NAMES = new Set([
   "saliha", "sümeyye", "ecrin", "beren", "kader", "irem", "elifsena", "kamile", "gizem", "aişe",
   "mira", "sude", "nazlı", "ayla", "aysu", "rumeysa", "dilara", "eda", "dilan", "berfin", "hümeyra",
   "selin", "esma", "hayrunnisa", "deniz", "leyla", "göksu", "zehra", "kevser", "meryem", "simay",
-  "meyra", "seher", "hafize", "sudenur", "yasemin", "sena", "nisa", "meryem", "melisa", "aslı", "buse"
+  "meyra", "seher", "hafize", "sudenur", "yasemin", "sena", "duygu", "duru", "ceylin", "melisa", "aslı", "buse"
 ]);
 
 const SHIRTS = ["#e4572e", "#17bebb", "#ffc914", "#76b041", "#a45ee5", "#ff8fa3", "#4d9de0", "#f08a4b"];
@@ -500,9 +500,7 @@ function svg(shirt, skin, view = "side", girl = false) {
       <g class="far"><rect x="58" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
       <rect x="29" y="62" width="32" height="42" rx="10" fill="${shirt}"/>
       <circle cx="45" cy="42" r="19" fill="${skin}"/>
-      ${girl
-        ? `<circle cx="45" cy="42" r="19.5" fill="${HAIR}"/><path d="M26 40 Q23 70 31 98 Q45 104 59 98 Q67 70 64 40 Z" fill="${HAIR}"/>`
-        : `<path d="M26 44 q-1 -29 19 -29 q20 0 19 29 q0 8 -4 10 q-15 6 -30 0 q-4 -2 -4 -10z" fill="${HAIR}"/>`}
+      ${girl ? `<circle cx="45" cy="42" r="19.5" fill="${HAIR}"/><path d="M26 40 Q23 70 31 98 Q45 104 59 98 Q67 70 64 40 Z" fill="${HAIR}"/>` : `<path d="M26 44 q-1 -29 19 -29 q20 0 19 29 q0 8 -4 10 q-15 6 -30 0 q-4 -2 -4 -10z" fill="${HAIR}"/>`}
     </svg>`;
   }
 
@@ -530,7 +528,7 @@ function addStudent(name, index = walkers.length) {
   el.className = "walker";
   el.dataset.view = "side";
 
-  const skins = ["#f2c9a0", "#d9a577", "#b57b50", "#8a5a3b"];
+  const skins = ["#f4d9b6", "#efcf9e", "#e7c39a", "#f1c7a1"];
   const shirt = SHIRTS[index % SHIRTS.length];
   const skin = pick(skins);
   const girl = isGirl(cleanName);
@@ -823,7 +821,7 @@ function showChat() {
 
 const chatHide = null;
 function faceSvg(w) {
-  return svg(w.shirt, w.skin, "front", w.girl).replace(/class="person[^\"]*" viewBox="0 0 90 150"/, 'viewBox="14 8 62 62"');
+  return svg(w.shirt, w.skin, "front", w.girl).replace(/class="person[^"]*" viewBox="0 0 90 150"/, 'viewBox="14 8 62 62"');
 }
 
 function startDance() {
