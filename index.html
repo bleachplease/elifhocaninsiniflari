@@ -15,7 +15,8 @@
   .walker{position:absolute;width:90px;will-change:transform}
   .flipper{position:absolute;bottom:0;left:50%;width:90px;height:150px;margin-left:-45px;transform-origin:50% 100%}
   .flip{transform:scaleX(-1)}
-  .person{position:absolute;inset:0}
+  .person{position:absolute;inset:0;display:none}
+  .walker[data-view="side"] .p-side,.walker[data-view="front"] .p-front,.walker[data-view="back"] .p-back{display:block}
   .name{position:absolute;left:50%;top:-6px;transform:translateX(-50%);background:var(--ink);color:#fff;
         padding:2px 10px;border-radius:12px;font-size:13px;white-space:nowrap}
   .bubble{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:34px;background:var(--bubble);
@@ -58,6 +59,15 @@
   .dancing .leg{animation-duration:.25s}
   @keyframes floss{from{transform:rotate(-80deg)}to{transform:rotate(80deg)}}
   @keyframes hips{from{transform:translateX(-7px) rotate(-7deg)}to{transform:translateX(7px) rotate(7deg)}}
+
+  /* ---- halay: poses are driven from JS so every dancer moves in perfect sync ---- */
+  .fl{transform-origin:39px 98px}
+  .fr{transform-origin:52px 98px}
+  .fal{transform-origin:27px 68px}
+  .far{transform-origin:63px 68px}
+  .walker.hal .leg,.walker.hal .arm{animation:none}
+  .walker.hal .name{font-size:11px;padding:1px 7px}
+  .walker.hal.alt .name{top:-22px}
   @media (prefers-reduced-motion:reduce){.leg,.arm{animation-duration:1.6s}}
 </style>
 </head>
@@ -106,7 +116,10 @@ const MESSAGES = [                      // the random message (top bubble)
 ];
 const FIXED_REPLY = "Um... I can't... But it was nice talking to you.";   // the fixed answer (bottom bubble)
 const POPUP_EVERY = 10000, POPUP_STAYS = 4000;                          // milliseconds
-const DANCE_EVERY = 30000, DANCE_FOR = 20000;              // milliseconds
+const DANCE_EVERY = 30000, DANCE_FOR = 20000;              // the single dancer (paused during halay), milliseconds
+const HALAY_EVERY = 180000, HALAY_FOR = 60000;           // halay every 3 minutes, lasts 1 minute (milliseconds)
+const HALAY_SPEED = 70, HALAY_BEAT = 800;                // circling speed (pixels/second) and length of one kick cycle (milliseconds)
+const GIRL_NAMES = new Set(["Emine","Melis","Zeynep","Gamze","Yaren","Öykü","Nisanur","Nisa","Eylül","Elif","Saliha","Sümeyye","Ecrin","Beren","Kader","İrem","Elifsena","Kamile","Gizem","Aişe","Irmak","Hatice","Piraye","Ada","Simay","Sudenur","Meyra","Seher","Hafize","Yağmur","Eysa","Nur","Zehra","Hale","Ela","Kevser","Selin","Hayrunnisa","Esma","Duygu","Duru","Göksu","Hümeyra","Ceylin","Meryem","Berfin","Ece","Ebrar"].map(n => n.toLocaleLowerCase("tr")));
 const SHIRTS = ["#e4572e","#17bebb","#ffc914","#76b041","#a45ee5","#ff8fa3","#4d9de0","#f08a4b"];
 /* ============================ */
 
@@ -117,8 +130,37 @@ let expected = 0, activeBubbles = 0;
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
-function svg(shirt, skin){
-  return `<svg class="person" viewBox="0 0 90 150" xmlns="http://www.w3.org/2000/svg">
+const HAIR = "#3b2a20";
+const isGirl = name => GIRL_NAMES.has(name.trim().split(/\s+/)[0].toLocaleLowerCase("tr"));
+
+function svg(shirt, skin, view = "side", girl = false){
+  const head = `<svg class="person p-${view}" viewBox="0 0 90 150" xmlns="http://www.w3.org/2000/svg">`;
+  if (view === "front") return head + `
+    ${girl ? `<path d="M25 36 Q22 19 45 19 Q68 19 65 36 L68 88 Q45 96 22 88 Z" fill="${HAIR}"/>` : ""}
+    <g class="fl"><rect x="33" y="96" width="12" height="46" rx="6" fill="#33415c"/></g>
+    <g class="fr"><rect x="46" y="96" width="12" height="46" rx="6" fill="#4a5a7a"/></g>
+    <g class="fal"><rect x="22" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
+    <g class="far"><rect x="58" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
+    <rect x="29" y="62" width="32" height="42" rx="10" fill="${shirt}"/>
+    <circle cx="45" cy="42" r="19" fill="${skin}"/>
+    <circle cx="38" cy="41" r="2.6" fill="#222"/><circle cx="52" cy="41" r="2.6" fill="#222"/>
+    <path d="M39 50 q6 5 12 0" stroke="#222" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M26 40 q-1 -25 19 -25 q20 0 19 25 q-7 -14 -19 -14 q-12 0 -19 14z" fill="${HAIR}"/>
+    ${girl ? `<path d="M26 50 Q22 74 29 96 L38 94 Q32 72 35 54 Z" fill="${HAIR}"/><path d="M64 50 Q68 74 61 96 L52 94 Q58 72 55 54 Z" fill="${HAIR}"/>` : ""}
+  </svg>`;
+  if (view === "back") return head + `
+    <g class="fl"><rect x="33" y="96" width="12" height="46" rx="6" fill="#33415c"/></g>
+    <g class="fr"><rect x="46" y="96" width="12" height="46" rx="6" fill="#4a5a7a"/></g>
+    <g class="fal"><rect x="22" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
+    <g class="far"><rect x="58" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
+    <rect x="29" y="62" width="32" height="42" rx="10" fill="${shirt}"/>
+    <circle cx="45" cy="42" r="19" fill="${skin}"/>
+    ${girl
+      ? `<circle cx="45" cy="42" r="19.5" fill="${HAIR}"/><path d="M26 40 Q23 70 31 98 Q45 104 59 98 Q67 70 64 40 Z" fill="${HAIR}"/>`
+      : `<path d="M26 44 q-1 -29 19 -29 q20 0 19 29 q0 8 -4 10 q-15 6 -30 0 q-4 -2 -4 -10z" fill="${HAIR}"/>`}
+  </svg>`;
+  return head + `
+    ${girl ? `<path d="M32 30 C17 48 17 84 24 108 L43 106 L46 56 Z" fill="${HAIR}"/>` : ""}
     <g class="leg"><rect x="38" y="96" width="12" height="46" rx="6" fill="#33415c"/></g>
     <g class="leg b"><rect x="40" y="96" width="12" height="46" rx="6" fill="#4a5a7a"/></g>
     <g class="arm"><rect x="40" y="66" width="10" height="38" rx="5" fill="${skin}"/></g>
@@ -127,22 +169,31 @@ function svg(shirt, skin){
     <circle cx="45" cy="42" r="19" fill="${skin}"/>
     <circle cx="52" cy="40" r="2.6" fill="#222"/>
     <path d="M47 50 q6 5 11 0" stroke="#222" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <path d="M26 38 q2 -24 24 -22 q16 2 15 22 q-8 -12 -39 0z" fill="#3b2a20"/>
+    <path d="M26 38 q2 -24 24 -22 q16 2 15 22 q-8 -12 -39 0z" fill="${HAIR}"/>
   </svg>`;
 }
+const allViews = (shirt, skin, girl) => svg(shirt, skin, "side", girl) + svg(shirt, skin, "front", girl) + svg(shirt, skin, "back", girl);
 
 function addStudent(name, i = walkers.length){
   const el = document.createElement("div");
   el.className = "walker";
+  el.dataset.view = "side";
   const skins = ["#f2c9a0","#d9a577","#b57b50","#8a5a3b"];
-  const shirt = SHIRTS[i % SHIRTS.length], skin = pick(skins);
-  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${svg(shirt, skin)}</div>`;
+  const shirt = SHIRTS[i % SHIRTS.length], skin = pick(skins), girl = isGirl(name);
+  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl)}</div>`;
   el.querySelector(".name").textContent = name;
   scene.appendChild(el);
   const w = {
-    el, name, shirt, skin, dir: Math.random() < .5 ? 1 : -1,
+    el, name, shirt, skin, girl, dir: Math.random() < .5 ? 1 : -1,
     x: Math.random() < .5 ? -80 : innerWidth, speed: rand(30, 70),
-    lane: (i * 0.618034) % 1, dance: null, k: 0, speaking: false, nextTalk: performance.now() + rand(3000, 3000 + Math.max(6000, expected * 1000))
+    lane: (i * 0.618034) % 1, dance: null, k: 0, speaking: false, nextTalk: performance.now() + rand(3000, 3000 + Math.max(6000, expected * 1000)),
+    hk: 0, view: "side", hal: false
+  };
+  const q = (v, sel) => el.querySelector(`.p-${v} ${sel}`);
+  w.parts = {
+    side:  { svg: el.querySelector(".p-side"),  leg: q("side", ".leg:not(.b)"), legb: q("side", ".leg.b"), arm: q("side", ".arm:not(.arm2)") },
+    front: { svg: el.querySelector(".p-front"), fl: q("front", ".fl"), fr: q("front", ".fr"), fal: q("front", ".fal"), far: q("front", ".far") },
+    back:  { svg: el.querySelector(".p-back"),  fl: q("back", ".fl"),  fr: q("back", ".fr"),  fal: q("back", ".fal"),  far: q("back", ".far") }
   };
   walkers.push(w);
 }
@@ -155,29 +206,111 @@ function say(w){
   setTimeout(() => { b.classList.remove("show"); w.speaking = false; activeBubbles = Math.max(0, activeBubbles - 1); }, dur);
 }
 
+/* ---- halay: one big ellipse, holding hands, circling, everybody facing the centre ---- */
+let halay = false, halayStart = 0, halayEnd = 0, nextHalay = Infinity, ell = null;
+function getBase(){ const n = Math.max(walkers.length, expected); return n <= 10 ? 1 : Math.max(0.55, 1 - (n - 10) * 0.017); }
+
+function ensureEllipse(n){                       // ellipse on the ground + a table to space people evenly along it
+  const key = n + "|" + innerWidth + "|" + innerHeight;
+  if (ell && ell.key === key) return ell;
+  const rx = innerWidth * 0.4, ry = innerHeight * 0.17, cx = innerWidth / 2, cy = innerHeight * 0.76, K = 720;
+  const th = new Float64Array(K + 1), cum = new Float64Array(K + 1);
+  for (let k = 0; k <= K; k++){
+    th[k] = 2 * Math.PI * k / K;
+    if (k) cum[k] = cum[k - 1] + Math.hypot(rx * (Math.cos(th[k]) - Math.cos(th[k - 1])), ry * (Math.sin(th[k]) - Math.sin(th[k - 1])));
+  }
+  const P = cum[K], spacing = P / Math.max(1, n);
+  ell = { key, rx, ry, cx, cy, th, cum, P, hs: Math.min(1, Math.max(0.5, spacing / 60)) };   // hs: shrink avatars if the ring is crowded
+  return ell;
+}
+function ellipseAngle(e, d){                     // distance along the ellipse -> angle
+  d = ((d % e.P) + e.P) % e.P;
+  let lo = 0, hi = e.th.length - 1;
+  while (hi - lo > 1){ const m = (lo + hi) >> 1; if (e.cum[m] <= d) lo = m; else hi = m; }
+  const f = (d - e.cum[lo]) / ((e.cum[hi] - e.cum[lo]) || 1);
+  return e.th[lo] + f * (e.th[hi] - e.th[lo]);
+}
+
+/* every dancer uses the same phase p, so all kicks and arm movements are simultaneous */
+function pose(w, view, p){
+  const s = Math.sin(2 * Math.PI * p), s2 = Math.sin(4 * Math.PI * p), P = w.parts[view];
+  P.svg.style.transform = `translate(${3 * s}px, ${-5 * Math.abs(s)}px)`;           // little hop
+  if (view === "side"){
+    P.leg.style.transform  = `rotate(${-32 * Math.max(0, s)}deg)`;
+    P.legb.style.transform = `rotate(${-32 * Math.max(0, -s)}deg)`;
+    P.arm.style.transform  = `rotate(${-(48 + 16 * s2)}deg)`;
+  } else {
+    P.fl.style.transform  = `rotate(${32 * Math.max(0, s)}deg)`;                   // left leg kicks, then right leg
+    P.fr.style.transform  = `rotate(${-32 * Math.max(0, -s)}deg)`;
+    P.fal.style.transform = `rotate(${62 + 20 * s2}deg)`;                           // arms reach out to the neighbours and pull in
+    P.far.style.transform = `rotate(${-(62 + 20 * s2)}deg)`;
+  }
+}
+function clearPose(w){ for (const v in w.parts) for (const k in w.parts[v]) w.parts[v][k].style.transform = ""; }
+
+function checkHalay(now){
+  if (!menu.classList.contains("gone")) return;
+  if (!halay && now >= nextHalay && walkers.length){
+    halay = true; halayStart = now; halayEnd = now + HALAY_FOR; nextHalay = now + HALAY_EVERY;
+    for (const w of walkers){ w.dance = null; w.el.classList.remove("dancing"); }   // the single dancer stops
+  } else if (halay && now >= halayEnd){ halay = false; }
+}
+
 let last = performance.now();
 function tick(now){
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  checkHalay(now);
   const n = Math.max(walkers.length, expected);
-  const base = n <= 10 ? 1 : Math.max(0.55, 1 - (n - 10) * 0.017);   // more students = smaller avatars
-  for (const w of walkers){
+  const base = getBase();   // more students = smaller avatars
+  const e0 = ensureEllipse(walkers.length || 1);
+  const rotD = (Math.min(now, halayEnd) - halayStart) * HALAY_SPEED / 1000;        // how far the circle has turned
+  const beat = (now / HALAY_BEAT) % 1;
+  for (let i = 0; i < walkers.length; i++){
+    const w = walkers[i];
     if (w.dance && now > w.dance){ w.dance = null; w.el.classList.remove("dancing"); }
     w.k += ((w.dance ? 1 : 0) - w.k) * Math.min(1, dt * 3);          // 0 = walking, 1 = dancing up front
-    const L = w.lane + (1 - w.lane) * w.k;                           // dancer moves to the front lane
-    const s = base * (0.75 + 0.25 * L) * (1 + 0.7 * w.k);            // students further back look smaller; dancer gets bigger
+    w.hk = Math.min(1, Math.max(0, w.hk + (halay ? 1 : -1) * dt / 3)); // 0 = walking, 1 = in the halay ring (3 s to get there)
+    const e = w.hk * w.hk * (3 - 2 * w.hk);
+    let L = w.lane + (1 - w.lane) * w.k;                             // dancer moves to the front lane
+    let tx = 0, th = 0;
+    if (w.hk > 0){
+      th = ellipseAngle(e0, i * e0.P / walkers.length + rotD);       // my place on the ellipse
+      tx = e0.cx + e0.rx * Math.cos(th) - 45;
+      const tf = e0.cy + e0.ry * Math.sin(th);
+      L += ((tf - innerHeight * 0.52) / (innerHeight * 0.42) - L) * e;
+    }
+    const s = base * (0.75 + 0.25 * L) * (1 + 0.7 * w.k) * (1 + (e0.hs - 1) * e);
     const h = 150 * s;
-    if (w.dance){
+    if (halay || w.hk > 0){
+      /* x stays where it was; the ring position is blended in (and out again at the end) */
+    } else if (w.dance){
       w.x += (innerWidth / 2 - 45 - w.x) * Math.min(1, dt * 2);      // glide to the middle of the screen
     } else {
       w.x += w.dir * w.speed * s * dt;
       if (w.x < -90) w.dir = 1; else if (w.x < -10 && w.dir < 0) w.dir = 1;
       if (w.x > innerWidth) w.dir = -1; else if (w.x > innerWidth - 80 && w.dir > 0) w.dir = -1;
     }
+    const px = w.hk > 0 ? w.x + (tx - w.x) * e : w.x;
+    const arrived = halay && w.hk >= 1;
+    let view = "side";
+    if (arrived){
+      const fx = -Math.cos(th), fy = -Math.sin(th);                  // direction towards the centre of the ring
+      if (fy > 0.6) view = "front";                                  // far side of the ring: we see their faces
+      else if (fy < -0.6) view = "back";                             // near side of the ring: we see their backs
+      else w.dir = fx > 0 ? 1 : -1;                                  // left/right ends: profile, looking at the centre
+    } else if (w.hk > 0){
+      const d = (halay ? tx : w.x) - px;
+      if (Math.abs(d) > 1) w.dir = d > 0 ? 1 : -1;                   // walking to / from the ring
+    }
+    if (view !== w.view){ w.view = view; w.el.dataset.view = view; }
+    if (arrived !== w.hal){ w.hal = arrived; w.el.classList.toggle("hal", arrived); if (!arrived) clearPose(w); }
+    w.el.classList.toggle("alt", arrived && i % 2 === 1);
+    if (arrived) pose(w, view, beat);
     const foot = innerHeight * 0.52 + L * innerHeight * 0.42;
     w.el.style.height = h + "px";
-    w.el.style.transform = `translate(${w.x}px, ${foot - h}px)`;
-    w.el.style.zIndex = w.speaking ? 9000 : w.dance ? 8500 : Math.round(foot);
-    w.el.querySelector(".flipper").style.transform = `scale(${w.dir < 0 ? -s : s}, ${s})`;
+    w.el.style.transform = `translate(${px}px, ${foot - h}px)`;
+    w.el.style.zIndex = w.speaking ? 9000 : (w.dance ? 8500 : Math.round(foot));
+    w.el.querySelector(".flipper").style.transform = `scale(${view === "side" && w.dir < 0 ? -s : s}, ${s})`;
     if (now > w.nextTalk){ say(w); w.nextTalk = now + rand(0.7, 1.3) * Math.max(5000, n * 1400); }
   }
   requestAnimationFrame(tick);
@@ -185,7 +318,7 @@ function tick(now){
 
 /* chat pop-up: two random students on screen, random message, fixed answer */
 const chat = document.getElementById("chat");
-const faceSvg = w => svg(w.shirt, w.skin).replace('class="person" viewBox="0 0 90 150"', 'viewBox="18 10 54 54"');
+const faceSvg = w => svg(w.shirt, w.skin, "front", w.girl).replace(/class="person[^"]*" viewBox="0 0 90 150"/, 'viewBox="14 8 62 62"');
 let chatHide = null;
 function showChat(){
   if (!menu.classList.contains("gone") || walkers.length < 2) return;
@@ -206,7 +339,7 @@ setInterval(showChat, POPUP_EVERY);
 
 /* every DANCE_EVERY ms a random student walks to the front and dances for DANCE_FOR ms */
 function startDance(){
-  if (!menu.classList.contains("gone")) return;
+  if (!menu.classList.contains("gone") || halay) return;           // no single dancer during halay
   const free = walkers.filter(w => !w.dance);
   if (!free.length || free.length < walkers.length) return;           // wait if someone is already dancing
   const w = pick(free);
@@ -227,6 +360,7 @@ function openClass(c){
   try{ const s = JSON.parse(localStorage.getItem("qw-"+c)); if (Array.isArray(s)) names = s; }catch(e){}
   expected = names.length;
   menu.classList.add("gone");
+  nextHalay = performance.now() + HALAY_EVERY;                     // first halay 3 minutes after the class opens
   document.getElementById("title").firstChild.textContent = "Konuşma sınavı devam ediyor – " + c;
   const gap = Math.min(900, 12000 / names.length);   // everyone has arrived within about 12 seconds
   names.forEach((n, i) => timers.push(setTimeout(() => addStudent(n, i), 400 + i * gap)));  // they arrive one by one
@@ -236,6 +370,7 @@ function closeClass(){
   walkers.splice(0).forEach(w => w.el.remove());
   chat.classList.remove("show");
   expected = 0; activeBubbles = 0;
+  halay = false; nextHalay = Infinity;
   menu.classList.remove("gone");
 }
 Object.keys(CLASSES).forEach(c => {
