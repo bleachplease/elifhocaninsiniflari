@@ -589,6 +589,31 @@
   @media (prefers-reduced-motion: reduce) {
     .leg, .arm { animation-duration: 1.6s; }
   }
+
+  /* ---------- Simit scene ---------- */
+  .walker.standing .leg,
+  .walker.standing .arm { animation: none; }
+
+  .vendor .name { top: -34px; background: #a8322a; }
+  .vendor .bubble { margin-bottom: 52px; }
+  .walker.vendor.give .arm:not(.arm2) { animation: none; transform: rotate(-78deg); }
+
+  .eat {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    display: none;
+    pointer-events: none;
+  }
+  .walker.eating[data-view="side"] .eat { display: block; }
+  .eat .bite { animation: bite 0.9s ease-in-out infinite; }
+
+  @keyframes bite {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-3px, -2px); }
+  }
 </style>
 </head>
 <body>
@@ -647,6 +672,17 @@ const SAYINGS = [
   "Pizzayı severim.", "Bugün cuma mı?", "İngilizce konuşma pratiği yapıyorum!", "Sonra görüşürüz!"
 ];
 
+const SIMIT_BUY = [
+  "Simit! Hemen alıyorum!", "Sıcak simit kokusu geldi!", "Bir simit lütfen!",
+  "Yanında çay da olsa!", "Karnım zil çalıyor!"
+];
+const SIMIT_EAT = [
+  "Mmm, çıtır çıtır!", "Susamlar üstüme döküldü :)", "Dünyanın en iyi simidi!",
+  "Peynir olsa tam olurdu."
+];
+const SIMIT_THANKS = ["Teşekkürler!", "Eline sağlık usta!", "Sağ ol usta!"];
+const VENDOR_LINES = ["Sıcak sıcak simit!", "Sıra sıra, herkese yeter!", "Taze simit, taze!", "Susamlı simit!"];
+
 const EXCHANGES = [
   { q: "Ne zaman beni ziyaret edeceksin?", a: "En yakın zamanda ziyaret edeceğim arkadaşım" },
   { q: "Hafta sonu müsait misin? Hadi buluşalım!", a: "Hayır, müsait değilim; başkasıyla buluş." },
@@ -691,7 +727,13 @@ const CONFIG = {
   HALAY_SPEED: 70,
   HALAY_BEAT: 800,
   ARRIVAL_WINDOW_MS: 12000,
-  ARRIVAL_GAP_MAX_MS: 900
+  ARRIVAL_GAP_MAX_MS: 900,
+  SIMIT_FIRST: 300000,      // first visit: 5 min after a class is opened
+  SIMIT_EVERY: 300000,      // then every 5 min (5, 10, 15 ...)
+  SIMIT_ROAM: 60000,        // everyone roams eating for 1 min
+  SIMIT_SERVE_MS: 900,      // time between two sales
+  SIMIT_GUARD_MS: 1500,     // no halay/dance may start this close before the simitçi
+  SIMIT_HALAY_DELAY: 8000   // a halay that was skipped starts this long after the scene
 };
 
 const GIRL_NAMES = new Set([
@@ -718,6 +760,9 @@ const state = {
   halayStart: 0,
   halayEnd: 0,
   nextHalay: Infinity,
+  simit: null,
+  nextSimit: Infinity,
+  base: 1,
   ellipse: null,
   lastFrame: performance.now()
 };
@@ -865,7 +910,7 @@ function addStudent(name, index = walkers.length) {
   const girl = isGirl(cleanName);
   const hair = pick(HAIRS);
 
-  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl, hair)}</div>`;
+  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl, hair)}${eatSvg(shirt, skin)}</div>`;
   el.querySelector(".name").textContent = cleanName;
   scene.appendChild(el);
 
@@ -885,8 +930,19 @@ function addStudent(name, index = walkers.length) {
     nextTalk: performance.now() + rand(3000, 3000 + Math.max(6000, state.expected * 1000)),
     hk: 0,
     view: "side",
-    hal: false
+    hal: false,
+    px: 0,
+    sm: null,
+    sl: 0,
+    ssp: 0,
+    sready: false,
+    stand: false,
+    atSlot: false,
+    wp: null,
+    wait: 0,
+    eatR: 1
   };
+  w.px = w.x;
 
   const q = (view, selector) => el.querySelector(`.p-${view} ${selector}`);
   w.parts = {
@@ -913,9 +969,11 @@ function addStudent(name, index = walkers.length) {
   };
 
   walkers.push(w);
+  w.simEl = el.querySelector(".eat .sim");
+  if (state.simit) joinSimit(w);
 }
 
-function say(w) {
+function say(w, text) {
   if (state.activeBubbles >= 4) {
     w.nextTalk = performance.now() + rand(1000, 3000);
     return;
@@ -923,7 +981,7 @@ function say(w) {
 
   const bubble = w.el.querySelector(".bubble");
   const duration = rand(2500, 4000);
-  bubble.textContent = pick(SAYINGS);
+  bubble.textContent = text || pickSaying(w);
   bubble.classList.add("show");
   w.speaking = true;
   state.activeBubbles += 1;
@@ -1011,10 +1069,356 @@ function clearPose(w) {
   }
 }
 
+/* =====================  SIMIT SCENE  ===================== */
+const SIMIT_RING =
+  '<circle r="5.6" fill="none" stroke="#c4822a" stroke-width="3.6"/>' +
+  '<circle r="5.6" fill="none" stroke="#f3dfaa" stroke-width="1.5" stroke-dasharray="0.9 1.9" stroke-linecap="round"/>';
+
+function eatSvg(shirt, skin) {
+  const sleeve = shade(shirt, -0.12);
+  const delay = (-rand(0, 0.9)).toFixed(2);
+  return `<svg class="eat" viewBox="0 0 90 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M45 56 L52 73" stroke="${sleeve}" stroke-width="7.4" stroke-linecap="round" fill="none"/>
+    <g class="bite" style="animation-delay:${delay}s">
+      <path d="M52 73 L61 49" stroke="${skin}" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <circle cx="61.5" cy="47" r="3.6" fill="${skin}"/>
+      <g class="sim" transform="translate(64 40)">${SIMIT_RING}</g>
+    </g>
+  </svg>`;
+}
+
+function vendorExtras() {
+  const ring = (x, y) => `<g class="ts" transform="translate(${x} ${y}) scale(.86)">${SIMIT_RING}</g>`;
+  const row3 = [36, 46.5, 57].map(x => ring(x, -5)).join("");
+  const row2 = [31, 41.5, 52, 62.5].map(x => ring(x, 1.5)).join("");
+  const row1 = [26, 36.5, 47, 57.5, 68].map(x => ring(x, 8)).join("");
+  return `<svg viewBox="0 0 90 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+      style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none">
+    <ellipse cx="46" cy="14.5" rx="30" ry="4.6" fill="#6b3f1c"/>
+    <ellipse cx="46" cy="12.8" rx="30" ry="4.4" fill="#a8723a"/>
+    ${row3}${row2}${row1}
+    <path d="M50.5 35.4 Q54 33.6 58.8 34.8" stroke="#2a1d17" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function makeVendor(fromLeft) {
+  const el = document.createElement("div");
+  el.className = "walker vendor";
+  el.dataset.view = "side";
+  el.innerHTML = `<div class="bubble"></div><div class="name">Simitçi</div><div class="flipper">${svg("#b5382f", "#e7c39a", "side", false, "#2a1d17")}${vendorExtras()}</div>`;
+  scene.appendChild(el);
+  return {
+    el,
+    flipper: el.querySelector(".flipper"),
+    rings: [...el.querySelectorAll(".ts")],
+    x: fromLeft ? -170 : innerWidth + 90,
+    dir: fromLeft ? 1 : -1,
+    mode: "in",          // in -> stand -> out -> gone
+    outDir: 1,
+    giveUntil: 0,
+    talking: false,
+    bt: null
+  };
+}
+
+function vsay(v, text, ms = 3200) {
+  const b = v.el.querySelector(".bubble");
+  b.textContent = text;
+  b.classList.add("show");
+  v.talking = true;
+  clearTimeout(v.bt);
+  v.bt = setTimeout(() => {
+    b.classList.remove("show");
+    v.talking = false;
+  }, ms);
+}
+
+function pickSaying(w) {
+  if (state.simit) return pick(w.sm === "got" ? SIMIT_EAT : SIMIT_BUY);
+  return pick(SAYINGS);
+}
+
+function setStand(w, on) {
+  if (w.stand !== on) {
+    w.stand = on;
+    w.el.classList.toggle("standing", on);
+  }
+}
+
+function vendorScale() {
+  return state.base * (0.75 + 0.25 * state.simit.standL) * 1.06;
+}
+
+function joinSimit(w) {
+  const sm = state.simit;
+  w.sready = false;
+  w.ssp = rand(140, 190);
+  w.wp = null;
+  w.wait = 0;
+  if (sm.phase === "roam") {
+    giveSimit(w, performance.now());
+  } else {
+    w.sm = "go";
+    sm.queue.push(w);
+  }
+}
+
+function giveSimit(w, now) {
+  w.sm = "got";
+  w.eatR = 1;
+  w.wp = null;
+  w.wait = now + rand(300, 900);
+  w.el.classList.add("eating");
+  if (w.simEl) w.simEl.setAttribute("transform", "translate(64 40)");
+}
+
+function slotFor(idx) {
+  const sm = state.simit;
+  const side = idx % 2 === 0 ? 1 : -1;
+  const rank = idx >> 1;
+  const col = rank % sm.cols;
+  const row = Math.floor(rank / sm.cols);
+  const rowOff = row === 0 ? 0 : (row % 2 ? 1 : -1) * Math.ceil(row / 2) * 0.075;
+  return {
+    x: sm.standX + side * (52 + col * sm.sp),
+    l: Math.min(1, Math.max(0, sm.standL + rowOff))
+  };
+}
+
+function stepScene(w, dt, now) {
+  const sm = state.simit;
+  const sPre = state.base * (0.75 + 0.25 * w.sl);
+  let tx, tl, speed, face = 0;
+
+  if (w.sm === "go") {
+    const slot = slotFor(Math.max(0, sm.queue.indexOf(w)));
+    tx = slot.x;
+    tl = slot.l;
+    speed = w.ssp;
+    face = sm.standX > tx ? 1 : -1;
+  } else if (w.wait && now < w.wait) {
+    tx = w.x; tl = w.sl; speed = 0;
+  } else {
+    if (!w.wp) w.wp = { x: rand(10, Math.max(20, innerWidth - 100)), l: rand(0.02, 1) };
+    tx = w.wp.x;
+    tl = w.wp.l;
+    speed = w.speed * 1.5;
+  }
+
+  const dx = tx - w.x;
+  const dl = tl - w.sl;
+  const dist = Math.hypot(dx, dl * innerHeight * 0.42);
+  const step = speed * sPre * dt;
+  let moving = false;
+
+  if (dist > 1.5 && step > 0) {
+    if (dist <= step) {
+      w.x = tx;
+      w.sl = tl;
+    } else {
+      const f = step / dist;
+      w.x += dx * f;
+      w.sl += dl * f;
+      moving = true;
+    }
+    if (Math.abs(dx) > 1) w.dir = dx > 0 ? 1 : -1;
+  }
+
+  const arrived = dist <= 1.5 || (step > 0 && dist <= step);
+  if (!moving && face) w.dir = face;
+  setStand(w, !moving);
+  w.atSlot = w.sm === "go" && arrived;
+
+  if (w.sm === "got") {
+    if (arrived && w.wp) {
+      w.wp = null;
+      w.wait = now + rand(700, 2800);
+    }
+    // the simit gets smaller during the roaming minute
+    const r = sm.phase === "roam" ? 1 - 0.88 * Math.min(1, (now - sm.roamStart) / CONFIG.SIMIT_ROAM) : 1;
+    if (w.simEl && Math.abs(r - w.eatR) > 0.008) {
+      w.eatR = r;
+      w.simEl.setAttribute("transform", `translate(64 40) scale(${r.toFixed(3)})`);
+    }
+  }
+}
+
+function checkSimit(now) {
+  if (!menu.classList.contains("gone")) return;
+  if (!state.simit && now >= state.nextSimit) startSimit(now);
+}
+
+function startSimit(now) {
+  if (!walkers.length) {
+    state.nextSimit = now + 5000;
+    return;
+  }
+
+  state.nextSimit = now + CONFIG.SIMIT_EVERY;
+
+  // the simit scene overrides halay and solo dances
+  if (state.halay) {
+    state.halay = false;
+    state.halayEnd = now;
+  }
+
+  const standX = innerWidth / 2 - 45;
+  const v = makeVendor(Math.random() < 0.5);
+
+  for (const w of walkers) {
+    w.dance = null;
+    w.el.classList.remove("dancing");
+    w.sm = "go";
+    w.sready = false;
+    w.ssp = rand(140, 190);
+    w.wp = null;
+    w.wait = 0;
+    w.atSlot = false;
+  }
+
+  state.simit = {
+    phase: "enter",
+    vendor: v,
+    standX,
+    standL: 0.5,
+    queue: walkers.slice().sort((a, b) => Math.abs(a.px + 45 - standX - 45) - Math.abs(b.px + 45 - standX - 45)),
+    total: walkers.length,
+    served: 0,
+    nextServe: 0,
+    roamStart: 0,
+    end: 0,
+    cols: 1,
+    sp: 40
+  };
+
+  vsay(v, "Simit! Taze simit!");
+}
+
+function updateSimit(now, dt) {
+  const sm = state.simit;
+  if (!sm) return;
+
+  if (!walkers.length) {
+    endSimit(now);
+    return;
+  }
+
+  const v = sm.vendor;
+  sm.queue = sm.queue.filter(w => w.sm === "go" && walkers.includes(w));
+  sm.standX = innerWidth / 2 - 45;
+  sm.total = Math.max(sm.total, walkers.length);
+
+  const half = Math.max(80, innerWidth / 2 - 52 - 50);
+  const perSide = Math.ceil(sm.total / 2);
+  sm.cols = Math.max(1, Math.min(perSide, Math.floor(half / 34)));
+  sm.sp = sm.cols > 1 ? Math.min(46, half / sm.cols) : 0;
+
+  const s = vendorScale();
+
+  if (v.mode === "in") {
+    const dx = sm.standX - v.x;
+    const step = 125 * s * dt;
+    v.dir = dx >= 0 ? 1 : -1;
+    if (Math.abs(dx) <= step) {
+      v.x = sm.standX;
+      v.mode = "stand";
+      sm.phase = "sell";
+      sm.nextServe = now + 600;
+      vsay(v, "Buyrun, sıcak simit!");
+    } else {
+      v.x += Math.sign(dx) * step;
+    }
+  } else if (v.mode === "stand") {
+    if (now >= sm.nextServe) {
+      // only the two people next to the cart can be served
+      const w = sm.queue.slice(0, 2).find(q => q.sready && q.atSlot);
+      if (w) {
+        sm.queue.splice(sm.queue.indexOf(w), 1);
+        giveSimit(w, now);
+        sm.served++;
+        v.dir = w.x > v.x ? 1 : -1;
+        v.giveUntil = now + 450;
+        sm.nextServe = now + CONFIG.SIMIT_SERVE_MS;
+
+        const left = Math.max(0, 1 - sm.served / sm.total);
+        const visible = Math.ceil(v.rings.length * left);
+        v.rings.forEach((g, i) => { g.style.display = i < v.rings.length - visible ? "none" : ""; });
+
+        if (Math.random() < 0.18) vsay(v, pick(VENDOR_LINES), 2500);
+        if (Math.random() < 0.5) say(w, pick(SIMIT_THANKS));
+      }
+    }
+
+    // everybody has a simit: the simitçi leaves, the roaming minute starts
+    if (walkers.every(w => w.sm === "got")) {
+      sm.phase = "roam";
+      sm.roamStart = now;
+      sm.end = now + CONFIG.SIMIT_ROAM;
+      v.mode = "out";
+      v.outDir = v.x + 45 < innerWidth / 2 ? -1 : 1;
+      vsay(v, "Afiyet olsun çocuklar!", 3600);
+    }
+  } else if (v.mode === "out") {
+    v.dir = v.outDir;
+    v.x += v.outDir * 150 * s * dt;
+    if (v.x < -260 || v.x > innerWidth + 200) {
+      v.el.remove();
+      v.mode = "gone";
+    }
+  }
+
+  if (sm.phase === "roam" && now >= sm.end) endSimit(now);
+}
+
+function endSimit(now) {
+  const sm = state.simit;
+  if (!sm) return;
+
+  clearTimeout(sm.vendor.bt);
+  sm.vendor.el.remove();
+
+  for (const w of walkers) {
+    if (w.sm && w.sready) w.lane = Math.min(1, Math.max(0, w.sl));
+    w.sm = null;
+    w.sready = false;
+    w.wp = null;
+    w.wait = 0;
+    w.stand = false;
+    w.el.classList.remove("eating", "standing");
+  }
+
+  state.simit = null;
+
+  // a halay that was due during the scene starts shortly after it
+  state.nextHalay = Math.max(state.nextHalay, now + CONFIG.SIMIT_HALAY_DELAY);
+}
+
+function renderVendor(now) {
+  const sm = state.simit;
+  if (!sm) return;
+  const v = sm.vendor;
+  if (v.mode === "gone") return;
+
+  const s = vendorScale();
+  const h = 150 * s;
+  const foot = innerHeight * 0.52 + sm.standL * innerHeight * 0.42;
+
+  v.el.style.height = `${h}px`;
+  v.el.style.transform = `translate(${v.x}px, ${foot - h}px)`;
+  v.el.style.zIndex = v.talking ? 9000 : Math.round(foot) + 1;
+  v.flipper.style.transform = `scale(${v.dir < 0 ? -s : s}, ${s})`;
+  v.el.classList.toggle("standing", v.mode === "stand");
+  v.el.classList.toggle("give", now < v.giveUntil);
+}
+/* =====================  /SIMIT SCENE  ===================== */
+
 function checkHalay(now) {
   if (!menu.classList.contains("gone")) return;
 
-  if (!state.halay && now >= state.nextHalay && walkers.length) {
+  // the simit scene always wins: no halay while it runs or is about to start
+  const simitBusy = !!state.simit || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS;
+
+  if (!state.halay && !simitBusy && now >= state.nextHalay && walkers.length) {
     state.halay = true;
     state.halayStart = now;
     state.halayEnd = now + CONFIG.HALAY_FOR;
@@ -1033,10 +1437,14 @@ function tick(now) {
   const dt = Math.min(0.1, (now - state.lastFrame) / 1000);
   state.lastFrame = now;
 
+  checkSimit(now);
   checkHalay(now);
 
   const n = Math.max(walkers.length, state.expected);
   const base = n <= 10 ? 1 : Math.max(0.55, 1 - (n - 10) * 0.017);
+  state.base = base;
+  updateSimit(now, dt);
+
   const e0 = ensureEllipse(walkers.length || 1);
   const rotD = (Math.min(now, state.halayEnd) - state.halayStart) * CONFIG.HALAY_SPEED / 1000;
   const beat = (now / CONFIG.HALAY_BEAT) % 1;
@@ -1053,9 +1461,22 @@ function tick(now) {
     w.hk = Math.min(1, Math.max(0, w.hk + (state.halay ? 1 : -1) * dt / 3));
     const e = w.hk * w.hk * (3 - 2 * w.hk);
 
+    // the simit scene takes over once any dance / halay pose has faded out
+    const sceneOn = !!(state.simit && w.sm) && w.hk <= 0 && w.k < 0.03;
+    if (sceneOn && !w.sready) {
+      w.sready = true;
+      w.sl = w.lane + (1 - w.lane) * w.k;
+      w.k = 0;
+    }
+
     let L = w.lane + (1 - w.lane) * w.k;
     let tx = 0;
     let th = 0;
+
+    if (sceneOn) {
+      stepScene(w, dt, now);
+      L = w.sl;
+    }
 
     if (w.hk > 0) {
       th = ellipseAngle(e0, i * e0.P / walkers.length + rotD);
@@ -1067,7 +1488,9 @@ function tick(now) {
     const s = base * (0.75 + 0.25 * L) * (1 + 0.7 * w.k) * (1 + (e0.hs - 1) * e);
     const h = 150 * s;
 
-    if (state.halay || w.hk > 0) {
+    if (sceneOn) {
+      // position handled by stepScene
+    } else if (state.halay || w.hk > 0) {
       // ring state handled below
     } else if (w.dance) {
       w.x += (innerWidth / 2 - 45 - w.x) * Math.min(1, dt * 2);
@@ -1080,6 +1503,7 @@ function tick(now) {
     }
 
     const px = w.hk > 0 ? w.x + (tx - w.x) * e : w.x;
+    w.px = px;
     const arrived = state.halay && w.hk >= 1;
     let view = "side";
 
@@ -1121,6 +1545,7 @@ function tick(now) {
     }
   }
 
+  renderVendor(now);
   requestAnimationFrame(tick);
 }
 
@@ -1159,7 +1584,8 @@ function faceSvg(w) {
 }
 
 function startDance() {
-  if (!menu.classList.contains("gone") || state.halay) return;
+  if (!menu.classList.contains("gone") || state.halay || state.simit) return;
+  if (performance.now() >= state.nextSimit - CONFIG.SIMIT_GUARD_MS) return;
 
   const free = walkers.filter(w => !w.dance);
   if (!free.length || free.length < walkers.length) return;
@@ -1195,6 +1621,7 @@ function openClass(className) {
   state.expected = names.length;
   menu.classList.add("gone");
   state.nextHalay = performance.now() + CONFIG.HALAY_EVERY;
+  state.nextSimit = performance.now() + CONFIG.SIMIT_FIRST;
 
   const titleNode = document.getElementById("title").firstChild;
   if (titleNode) titleNode.textContent = "Konuşma sınavı devam ediyor – " + className;
@@ -1219,6 +1646,12 @@ function closeClass() {
   state.nextHalay = Infinity;
   state.halayStart = 0;
   state.halayEnd = 0;
+  if (state.simit) {
+    clearTimeout(state.simit.vendor.bt);
+    state.simit.vendor.el.remove();
+    state.simit = null;
+  }
+  state.nextSimit = Infinity;
   state.current = null;
   menu.classList.remove("gone");
 }
