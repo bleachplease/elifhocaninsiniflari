@@ -520,6 +520,24 @@
   .walker.hal .leg,
   .walker.hal .arm { animation: none; }
 
+  /* halay: the dancers' own arms are replaced by arms that reach the neighbours' hands */
+  .walker.hal .arm,
+  .walker.hal .fal,
+  .walker.hal .far { visibility: hidden; }
+
+  .harms {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1px;
+    height: 1px;
+    overflow: visible;
+    pointer-events: none;
+    display: none;
+  }
+
+  .walker.hal .harms { display: block; }
+
   .walker.hal .name {
     font-size: 11px;
     padding: 1px 7px;
@@ -816,8 +834,10 @@ const CONFIG = {
   DANCE_FOR: 20000,
   HALAY_EVERY: 180000,
   HALAY_FOR: 60000,
-  HALAY_SPEED: 70,
-  HALAY_BEAT: 800,
+  HALAY_SPEED: 30,          // px/s the whole line travels around the circle while it steps in / out
+  HALAY_BEAT: 800,          // a full forward-back step takes two beats
+  HALAY_GAP: 64,            // distance (px at full size) between neighbours, short enough for held hands
+  HALAY_STEP: 26,           // how far (px at full size) the line steps toward the centre
   ARRIVAL_WINDOW_MS: 12000,
   ARRIVAL_GAP_MAX_MS: 900,
   SIMIT_FIRST: 300000,      // first visit: 5 min after a class is opened
@@ -1014,7 +1034,7 @@ function addStudent(name, index = walkers.length) {
   const girl = isGirl(cleanName);
   const hair = pick(HAIRS);
 
-  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl, hair)}${jerseySvg()}${rigSvg(shirt, skin, girl, hair)}${eatSvg(shirt, skin)}</div>`;
+  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl, hair)}${jerseySvg()}${rigSvg(shirt, skin, girl, hair)}${eatSvg(shirt, skin)}</div>${armsSvg(shirt, skin)}`;
   el.querySelector(".name").textContent = cleanName;
   scene.appendChild(el);
 
@@ -1088,6 +1108,7 @@ function addStudent(name, index = walkers.length) {
   };
 
   walkers.push(w);
+  w.hArms = [...el.querySelectorAll(".harms .ha")].map(g => ({ g, ol: g.children[0], sk: g.children[1], sl: g.children[2], hd: g.children[3] }));
   w.simEl = el.querySelector(".eat .sim");
   if (state.simit) joinSimit(w);
   else if (state.volley) joinVolley(w);
@@ -1114,30 +1135,43 @@ function say(w, text) {
 }
 
 function ensureEllipse(n) {
-  const key = `${n}|${innerWidth}|${innerHeight}`;
+  const key = `${n}|${innerWidth}|${innerHeight}|${state.base}`;
   if (state.ellipse && state.ellipse.key === key) return state.ellipse;
 
-  const rx = innerWidth * 0.4;
-  const ry = innerHeight * 0.17;
   const cx = innerWidth / 2;
   const cy = innerHeight * 0.76;
   const K = 720;
   const th = new Float64Array(K + 1);
   const cum = new Float64Array(K + 1);
 
-  for (let k = 0; k <= K; k++) {
-    th[k] = 2 * Math.PI * k / K;
-    if (k) {
-      cum[k] = cum[k - 1] + Math.hypot(
+  const build = (rx, ry) => {
+    for (let k = 0; k <= K; k++) {
+      th[k] = 2 * Math.PI * k / K;
+      cum[k] = k ? cum[k - 1] + Math.hypot(
         rx * (Math.cos(th[k]) - Math.cos(th[k - 1])),
         ry * (Math.sin(th[k]) - Math.sin(th[k - 1]))
-      );
+      ) : 0;
     }
+    return cum[K];
+  };
+
+  let rx = innerWidth * 0.4;
+  let ry = innerHeight * 0.17;
+  let P = build(rx, ry);
+
+  // dancers hold hands, so the ring is only as big as the group needs: neighbours stand
+  // about one arm-span apart instead of being spread over the whole screen
+  const gap = CONFIG.HALAY_GAP * (state.base || 1);
+  if (n >= 2 && P > gap * n) {
+    const k = Math.max(0.1, gap * n / P);
+    rx *= k;
+    ry *= k;
+    P = build(rx, ry);
   }
 
-  const P = cum[K];
+  // a very large group cannot shrink the ring any further, so the figures get smaller instead
   const spacing = P / Math.max(1, n);
-  state.ellipse = { key, rx, ry, cx, cy, th, cum, P, hs: Math.min(1, Math.max(0.5, spacing / 60)) };
+  state.ellipse = { key, rx, ry, cx, cy, th, cum, P, hs: Math.min(1, Math.max(0.45, spacing / gap)) };
   return state.ellipse;
 }
 
@@ -1156,22 +1190,91 @@ function ellipseAngle(e, d) {
   return e.th[lo] + f * (e.th[hi] - e.th[lo]);
 }
 
-function pose(w, view, p) {
-  const s = Math.sin(2 * Math.PI * p);
-  const s2 = Math.sin(4 * Math.PI * p);
+// halay step: two beats = one step forward (toward the centre) and one step back.
+//   F: 0 = stepped back, 1 = stepped forward;  r: right foot reaching forward;  l: left foot reaching back
+function halayStep(now) {
+  const u = (now / (CONFIG.HALAY_BEAT * 2)) % 1;
+  const ph = Math.sin(2 * Math.PI * u);
+  return { F: 0.5 - 0.5 * Math.cos(2 * Math.PI * u), r: Math.max(0, ph), l: Math.max(0, -ph), bob: Math.abs(ph) };
+}
+
+function pose(w, view, st) {
   const P = w.parts[view];
 
-  P.svg.style.transform = `translate(${3 * s}px, ${-5 * Math.abs(s)}px)`;
+  P.svg.style.transform = `translateY(${-3 * st.bob}px)`;
 
   if (view === "side") {
-    P.leg.style.transform = `rotate(${-32 * Math.max(0, s)}deg)`;
-    P.legb.style.transform = `rotate(${-32 * Math.max(0, -s)}deg)`;
-    P.arm.style.transform = `rotate(${-(48 + 16 * s2)}deg)`;
+    // the figure faces the centre of the ring: legs swing forward / back
+    P.leg.style.transform = `rotate(${-36 * st.r}deg)`;
+    P.legb.style.transform = `rotate(${30 * st.l}deg)`;
   } else {
-    P.fl.style.transform = `rotate(${32 * Math.max(0, s)}deg)`;
-    P.fr.style.transform = `rotate(${-32 * Math.max(0, -s)}deg)`;
-    P.fal.style.transform = `rotate(${62 + 20 * s2}deg)`;
-    P.far.style.transform = `rotate(${-(62 + 20 * s2)}deg)`;
+    // seen from the front or the back a step is a foot lifting and landing, never a leg spreading sideways
+    P.fl.style.transform = `translateY(${-9 * st.r}px) scale(${1 + 0.06 * st.r}, ${1 - 0.05 * st.r})`;
+    P.fr.style.transform = `translateY(${-6 * st.l}px) scale(${1 - 0.05 * st.l}, ${1 - 0.1 * st.l})`;
+  }
+}
+
+// joined hands: every dancer reaches both neighbours; the two arms meet at the same point
+function armsSvg(shirt, skin) {
+  const skinD = shade(skin, -0.2);
+  const g = `<g class="ha"><path fill="none" stroke="${skinD}" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path fill="none" stroke="${skin}" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path fill="none" stroke="${shade(shirt, -0.08)}" stroke-linecap="round"/>` +
+    `<circle fill="${skin}" stroke="${skinD}"/></g>`;
+  return `<svg class="harms" xmlns="http://www.w3.org/2000/svg">${g}${g}</svg>`;
+}
+
+function updateHalayArms(st) {
+  const n = walkers.length;
+  if (n < 2) return;
+  const hy = 88 - 11 * st.F;   // hands rise a little on the step forward, sink on the step back
+
+  for (let i = 0; i < n; i++) {
+    const w = walkers[i];
+    if (!w.hal) continue;
+    const nbs = n === 2 ? [walkers[1 - i]] : [walkers[(i + n - 1) % n], walkers[(i + 1) % n]];
+    const s = w.ss;
+    const ox = w.sx - 45;     // walker-local origin
+    const oy = w.stop;
+
+    for (let k = 0; k < 2; k++) {
+      const a = w.hArms[k];
+      const o = nbs[k];
+      if (!o || !o.hal) { a.g.style.display = "none"; continue; }
+      a.g.style.display = "";
+
+      const side = o.sx > w.sx + 0.5 ? 1 : (o.sx < w.sx - 0.5 ? -1 : (k ? 1 : -1));
+      const sx = w.sx + side * (w.view === "side" ? 2.5 : 15.5) * s;
+      const sy = w.sf - 96 * s;
+      // the clasped hands sit halfway between the two dancers
+      const hx = (w.sx + o.sx) / 2;
+      const hyy = ((w.sf - (150 - hy) * s) + (o.sf - (150 - hy) * o.ss)) / 2;
+
+      const dx = hx - sx;
+      const dy = hyy - sy;
+      const d = Math.hypot(dx, dy) || 1;
+      const len = 41 * s;                                   // arm length
+      const bend = Math.min(d < len ? Math.sqrt(len * len - d * d) / 2 : 0, len * 0.42);
+      let nx = -dy / d;
+      let ny = dx / d;
+      if (ny + 0.4 * side * nx < 0) { nx = -nx; ny = -ny; } // elbow drops down and out
+      const ex = (sx + hx) / 2 + nx * bend;
+      const ey = (sy + hyy) / 2 + ny * bend;
+
+      const L = (x, y) => `${(x - ox).toFixed(1)} ${(y - oy).toFixed(1)}`;
+      const arm = `M${L(sx, sy)} L${L(ex, ey)} L${L(hx, hyy)}`;
+      const sleeve = `M${L(sx, sy)} L${L(sx + (ex - sx) * 0.55, sy + (ey - sy) * 0.55)}`;
+      a.ol.setAttribute("d", arm);
+      a.ol.setAttribute("stroke-width", (7.8 * s).toFixed(2));
+      a.sk.setAttribute("d", arm);
+      a.sk.setAttribute("stroke-width", (6.2 * s).toFixed(2));
+      a.sl.setAttribute("d", sleeve);
+      a.sl.setAttribute("stroke-width", (8 * s).toFixed(2));
+      a.hd.setAttribute("cx", (hx - ox).toFixed(1));
+      a.hd.setAttribute("cy", (hyy - oy).toFixed(1));
+      a.hd.setAttribute("r", (3.7 * s).toFixed(2));
+      a.hd.setAttribute("stroke-width", (0.7 * s).toFixed(2));
+    }
   }
 }
 
@@ -2774,7 +2877,10 @@ function tick(now) {
 
   const e0 = ensureEllipse(walkers.length || 1);
   const rotD = (Math.min(now, state.halayEnd) - state.halayStart) * CONFIG.HALAY_SPEED / 1000;
-  const beat = (now / CONFIG.HALAY_BEAT) % 1;
+  const st = halayStep(now);
+  // how far the line steps toward the centre (smaller rings step less so the chain never collapses)
+  const stepA = Math.min(CONFIG.HALAY_STEP * base * e0.hs, 0.14 * e0.rx);
+  const stepYk = (e0.ry / e0.rx) * 1.8;
 
   for (let i = 0; i < walkers.length; i++) {
     const w = walkers[i];
@@ -2809,8 +2915,9 @@ function tick(now) {
 
     if (w.hk > 0) {
       th = ellipseAngle(e0, i * e0.P / walkers.length + rotD);
-      tx = e0.cx + e0.rx * Math.cos(th) - 45;
-      const tf = e0.cy + e0.ry * Math.sin(th);
+      const rock = st.F * e * e;   // forward = toward the centre of the ring
+      tx = e0.cx + e0.rx * Math.cos(th) - 45 - Math.cos(th) * stepA * rock;
+      const tf = e0.cy + e0.ry * Math.sin(th) - Math.sin(th) * stepA * stepYk * rock;
       L += ((tf - innerHeight * 0.52) / (innerHeight * 0.42) - L) * e;
     }
 
@@ -2860,19 +2967,27 @@ function tick(now) {
 
     w.el.classList.toggle("alt", arrived && i % 2 === 1);
 
-    if (arrived) pose(w, view, beat);
+    if (arrived) pose(w, view, st);
 
     const foot = innerHeight * 0.52 + L * innerHeight * 0.42;
+    w.sx = px + 45;
+    w.sf = foot - (w.jy || 0);
+    w.ss = s;
+    w.stop = foot - h - (w.jy || 0);
     w.el.style.height = `${h}px`;
     w.el.style.transform = `translate(${px}px, ${foot - h - (w.jy || 0)}px)`;
     w.el.style.zIndex = w.speaking ? 9000 : (w.dance ? 8500 : Math.round(foot));
     w.el.querySelector(".flipper").style.transform = `scale(${view === "side" && w.dir < 0 ? -s : s}, ${s})`;
 
     if (now > w.nextTalk) {
+      // nobody chats during the halay: the speech bubbles would cover the dancers
+      if (state.halay) { w.nextTalk = now + rand(4000, 8000); continue; }
       say(w);
       w.nextTalk = now + rand(0.7, 1.3) * Math.max(5000, n * 1400);
     }
   }
+
+  if (state.halay) updateHalayArms(st);
 
   renderVendor(now);
   renderVolley(now);
