@@ -1270,6 +1270,9 @@ function joinSimit(w) {
     giveSimit(w, performance.now());
   } else {
     w.sm = "go";
+    const right = sm.queue.filter(q => q.sside === 1).length;
+    const left = sm.queue.length - right;
+    w.sside = right <= left ? 1 : -1;
     sm.queue.push(w);
   }
 }
@@ -1283,12 +1286,20 @@ function giveSimit(w, now) {
   if (w.simEl) w.simEl.setAttribute("transform", "translate(64 40)");
 }
 
-function slotFor(idx) {
+function slotFor(w) {
   const sm = state.simit;
-  const side = idx % 2 === 0 ? 1 : -1;
-  const rank = idx >> 1;
-  const col = rank % sm.cols;
-  const row = Math.floor(rank / sm.cols);
+  const side = w.sside || 1;
+  // position inside the person's own side: when someone ahead is served,
+  // everyone behind only moves one place forward, never to the other side
+  let rank = 0;
+  for (const q of sm.queue) {
+    if (q === w) break;
+    if (q.sside === side) rank++;
+  }
+  // column-major: a step forward in the line is always a step toward the cart
+  const rows = sm.rows || 1;
+  const col = Math.floor(rank / rows);
+  const row = rank % rows;
   const rowOff = row === 0 ? 0 : (row % 2 ? 1 : -1) * Math.ceil(row / 2) * 0.075;
   return {
     x: sm.standX + side * (52 + col * sm.sp),
@@ -1302,7 +1313,7 @@ function stepScene(w, dt, now) {
   let tx, tl, speed, face = 0;
 
   if (w.sm === "go") {
-    const slot = slotFor(Math.max(0, sm.queue.indexOf(w)));
+    const slot = slotFor(w);
     tx = slot.x;
     tl = slot.l;
     speed = w.ssp;
@@ -1399,8 +1410,10 @@ function startSimit(now) {
     roamStart: 0,
     end: 0,
     cols: 1,
+    rows: 1,
     sp: 40
   };
+  state.simit.queue.forEach((w, i) => { w.sside = i % 2 === 0 ? 1 : -1; });
 
   vsay(v, "Simit! Taze simit!");
 }
@@ -1423,6 +1436,7 @@ function updateSimit(now, dt) {
   const perSide = Math.ceil(sm.total / 2);
   sm.cols = Math.max(1, Math.min(perSide, Math.floor(half / 34)));
   sm.sp = sm.cols > 1 ? Math.min(46, half / sm.cols) : 0;
+  sm.rows = Math.max(1, Math.ceil(perSide / sm.cols));
 
   const s = vendorScale();
 
@@ -1441,8 +1455,10 @@ function updateSimit(now, dt) {
     }
   } else if (v.mode === "stand") {
     if (now >= sm.nextServe) {
-      // only the two people next to the cart can be served
-      const w = sm.queue.slice(0, 2).find(q => q.sready && q.atSlot);
+      // only the first person of each side (next to the cart) can be served
+      const headR = sm.queue.find(q => q.sside === 1);
+      const headL = sm.queue.find(q => q.sside === -1);
+      const w = [headR, headL].find(q => q && q.sready && q.atSlot);
       if (w) {
         sm.queue.splice(sm.queue.indexOf(w), 1);
         giveSimit(w, now);
