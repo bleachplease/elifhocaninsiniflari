@@ -717,6 +717,77 @@
   .rig .vj { display: none; }
   .walker.jer .rig .vj { display: inline; }
   .walker.jer .rig .vp { display: none; }
+
+  /* ---------- Class photo scene (minute 8 -> 9:30) ---------- */
+  .grin { display: none; }
+  .walker.posing .grin { display: inline; }
+  .walker.waiting .name, .walker.posing .name { display: none; }
+
+  .walker.waiting .p-front {
+    transform-origin: 50% 100%;
+    animation: phSway 2.3s ease-in-out infinite alternate;
+    animation-delay: var(--sd, 0s);
+  }
+  @keyframes phSway { from { transform: rotate(-1.3deg); } to { transform: rotate(1.3deg); } }
+
+  /* arms while posing, seen from the front: left arm pivots at 29.5/52, right arm at 60.5/52 */
+  .walker.posing.pz0 .fal { transform: rotate(6deg); }
+  .walker.posing.pz0 .far { transform: rotate(-6deg); }
+  .walker.posing.pz3 .fal { transform: rotate(28deg); }
+  .walker.posing.pz3 .far { transform: rotate(-28deg); }
+  .walker.posing.pz1 .fal { transform: rotate(6deg); }
+  .walker.posing.pz1 .far { animation: pzWaveR 0.5s ease-in-out infinite alternate; }
+  .walker.posing.pz2 .fal { animation: pzWaveL 0.5s ease-in-out infinite alternate; }
+  .walker.posing.pz2 .far { animation: pzWaveR 0.5s ease-in-out infinite alternate-reverse; }
+  @keyframes pzWaveR { from { transform: rotate(-138deg); } to { transform: rotate(-168deg); } }
+  @keyframes pzWaveL { from { transform: rotate(138deg); } to { transform: rotate(168deg); } }
+
+  /* the photographer: side view while walking, back view while he shoots */
+  .photog .name { top: -34px; background: #2d4a6b; }
+  .photog .bubble { margin-bottom: 52px; }
+  .photog .raise { display: none; }
+  .photog.up .raise { display: inline; }
+  .photog.up .p-back .fal, .photog.up .p-back .far { display: none; }
+  .photog.up .p-back { transform-origin: 50% 100%; animation: aimBob 1.8s ease-in-out infinite alternate; }
+  @keyframes aimBob { from { transform: rotate(-0.8deg); } to { transform: rotate(0.9deg) translateY(-0.6px); } }
+
+  #flash {
+    position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 45;
+  }
+  #flash.go { animation: phFlash 0.95s ease-out; }
+  @keyframes phFlash { 0% { opacity: 0.96; } 100% { opacity: 0; } }
+
+  #pdim {
+    position: fixed; inset: 0; background: rgba(12, 22, 30, 0.5); opacity: 0;
+    transition: opacity 0.5s ease; pointer-events: none; z-index: 39;
+  }
+  #pdim.show { opacity: 1; }
+
+  #photo {
+    position: fixed; left: 50%; top: 50%; z-index: 40; pointer-events: none; opacity: 0;
+    transform: translate(-50%, -42%) scale(0.3) rotate(-9deg);
+    transition: opacity 0.45s ease, transform 0.75s cubic-bezier(0.2, 0.9, 0.25, 1.08);
+  }
+  #photo.show { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-1.6deg); }
+  #photo .pframe {
+    position: relative; background: #fdfbf4; padding: 16px 16px 58px; border-radius: 4px;
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+  #photo .pwin { position: relative; overflow: hidden; background: #000; }
+  #photo .pworld { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #photo .pworld * { animation-play-state: paused !important; }
+  #photo .pwin::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 6000;
+    background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 62%, rgba(0,0,0,0.28) 100%);
+  }
+  #photo .pstamp {
+    position: absolute; right: 12px; bottom: 9px; z-index: 6001; font: 700 14px monospace;
+    color: #ff9a3c; text-shadow: 0 0 4px rgba(255, 140, 40, 0.7);
+  }
+  #photo .pcap {
+    position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; color: var(--ink);
+    font: italic 700 clamp(15px, 2.2vw, 26px) "Trebuchet MS", Verdana, sans-serif;
+  }
 </style>
 </head>
 <body>
@@ -759,6 +830,9 @@
   <div class="vs-team b"><span class="vs-pts">0</span><span class="vs-serve">🏐</span><span class="vs-name">Mavi</span><i class="vs-dot"></i></div>
 </div>
 <div id="vbanner" aria-live="polite"><b></b><small></small></div>
+<div id="pdim"></div>
+<div id="flash"></div>
+<div id="photo" aria-hidden="true"><div class="pframe"><div class="pwin"></div><div class="pcap"></div></div></div>
 
 <div id="panel">
   <input id="newName" placeholder="Add a student name" aria-label="Student name">
@@ -855,7 +929,9 @@ const CONFIG = {
   VOLLEY_PAUSE_MS: 1300,    // pause after a point is scored
   VOLLEY_BREAK_MS: 4500,    // pause between sets
   VOLLEY_FINAL_MS: 8000,    // celebration at the end
-  VOLLEY_FAN_GAP: 120       // fans stand at least this far (px) outside the court side lines
+  VOLLEY_FAN_GAP: 120,      // fans stand at least this far (px) outside the court side lines
+  PHOTO_AT: 480000,         // class photo: once, at minute 8 after a class is opened
+  PHOTO_FOR: 90000          // ...and the scene is over at 9:30
 };
 
 const GIRL_NAMES = new Set([
@@ -886,6 +962,8 @@ const state = {
   nextSimit: Infinity,
   volley: null,
   nextVolley: Infinity,
+  photo: null,
+  nextPhoto: Infinity,
   base: 1,
   ellipse: null,
   lastFrame: performance.now()
@@ -972,6 +1050,7 @@ function svg(shirt, skin, view = "side", girl = false, hair = HAIR) {
            <path d="M56.2 26 Q58.4 40 58.5 54 Q59 66 56.5 74 L52.5 73 Q54.5 60 53.6 47 Q53.2 36 54.8 28Z" fill="url(#hr${u})"/>`
         : `<path d="M33.2 28.5 Q30.8 13 45 12.8 Q59.2 13 56.8 28.5 Q55.6 21 50.5 19.2 Q46 21.4 41 19.4 Q35.2 21 33.2 28.5Z" fill="url(#hr${u})"/>`}
       <path d="M38 16.6 Q44 14 51 16.4" stroke="${hairL}" stroke-width="1" fill="none" opacity=".5" stroke-linecap="round"/>
+      <g class="grin"><path d="M40.2 37.4 Q45 44.4 49.8 37.4 Q45 39.6 40.2 37.4Z" fill="#fffdf8" stroke="#a8504a" stroke-width=".8" stroke-linejoin="round"/><path d="M41.6 38.5 Q45 40.6 48.4 38.5" stroke="#e9e3d6" stroke-width=".5" fill="none"/><circle cx="37.6" cy="36" r="2.7" fill="#e58a7a" opacity=".22"/><circle cx="52.4" cy="36" r="2.7" fill="#e58a7a" opacity=".22"/></g>
     </svg>`;
   }
 
@@ -1110,8 +1189,13 @@ function addStudent(name, index = walkers.length) {
   walkers.push(w);
   w.hArms = [...el.querySelectorAll(".harms .ha")].map(g => ({ g, ol: g.children[0], sk: g.children[1], sl: g.children[2], hd: g.children[3] }));
   w.simEl = el.querySelector(".eat .sim");
+  w.pz = pick([0, 1, 2, 3, 3, 0, 1, 2]);
+  el.classList.add("pz" + w.pz);
+  el.style.setProperty("--sd", (-rand(0, 2.3)).toFixed(2) + "s");
+  w.ph = null; w.phAt = false; w.phX = 0; w.phL = 0.6; w.phSp = 0; w.phRel = 0;
   if (state.simit) joinSimit(w);
   else if (state.volley) joinVolley(w);
+  else if (state.photo) joinPhoto(w);
 }
 
 function say(w, text) {
@@ -1363,6 +1447,7 @@ function vsay(v, text, ms = 3200) {
 }
 
 function pickSaying(w) {
+  if (state.photo) return pick(PHOTO_SAYS);
   if (state.volley) return pick(VB_CHEERS);
   if (state.simit) return pick(w.sm === "got" ? SIMIT_EAT : SIMIT_BUY);
   return pick(SAYINGS);
@@ -1486,7 +1571,7 @@ function stepScene(w, dt, now) {
 
 function checkSimit(now) {
   if (!menu.classList.contains("gone")) return;
-  if (!state.simit && !state.volley && now >= state.nextSimit) startSimit(now);
+  if (!state.simit && !state.volley && !state.photo && now >= state.nextSimit) startSimit(now);
 }
 
 function startSimit(now) {
@@ -1657,6 +1742,404 @@ function renderVendor(now) {
   v.el.classList.toggle("give", now < v.giveUntil);
 }
 /* =====================  /SIMIT SCENE  ===================== */
+
+
+/* =====================  CLASS PHOTO SCENE  ===================== */
+// Minute 8 -> 9:30.  A photographer walks in and stops next to the group with his back to us, the students
+// huddle into two rows facing us, smile and pose, he counts down, the flash goes off and the picture is
+// shown big for a few seconds.  Then everybody relaxes, the students wander off and he leaves.
+const PHOTO_SAYS = [
+  "Ben görünüyor muyum?", "Çok sıkıştık!", "Ayağıma bastın!", "Saçım nasıl duruyor?", "Hadi çabuk çek!",
+  "Ben ortaya geçeyim!", "Gülümsemekten yanaklarım ağrıdı.", "Kafan önümü kapatıyor!", "Kıpırdamayın!", "Albüme girecek miyiz?"
+];
+const PHOTO_REVIEW = [
+  "Güzel çıktık mı?", "Ben gözümü kapatmışım galiba :(", "Harika çıkmışız!", "Bana da gönder!",
+  "Bu profil fotoğrafı olur!", "Bir tane daha çeksek mi?"
+];
+
+const phClamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const phSmooth = t => t * t * (3 - 2 * t);
+
+function photogSvgs() {
+  const shirt = "#3d4f5c", skin = "#e7c39a", hair = "#2a1d17";
+  const skinD = shade(skin, -0.16);
+  const camSide = '<g class="hcam"><path d="M46 43 Q52 52 53.5 63" stroke="#1f1f24" stroke-width="1.1" fill="none"/>' +
+    '<rect x="49" y="62" width="13" height="8.5" rx="1.6" fill="#1f1f24"/><rect x="50" y="60.6" width="5" height="2.4" rx=".8" fill="#3a3b42"/>' +
+    '<circle cx="59" cy="66.2" r="2.8" fill="#4a4b53"/><circle cx="59" cy="66.2" r="1.4" fill="#8fc3ea"/></g>';
+  const side = svg(shirt, skin, "side", false, hair).replace(/<\/svg>\s*$/, camSide + "</svg>");
+
+  // seen from behind: the raised elbows stick out, the camera body shows on both sides of his head
+  const arm = (sx, ex, hx) =>
+    `<path d="M${sx} 53 L${ex} 63 L${hx} 34" stroke="${skinD}" stroke-width="6.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="M${sx} 53 L${ex} 63 L${hx} 34" stroke="${skin}" stroke-width="5.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="M${sx} 52.5 L${sx + (ex - sx) * 0.62} ${52.5 + 10.5 * 0.62}" stroke="${shade(shirt, -0.06)}" stroke-width="8.2" fill="none" stroke-linecap="round"/>`;
+  const raise = '<g class="raise">' +
+    '<rect x="21.5" y="20.5" width="47" height="16" rx="3.2" fill="#1f1f24"/>' +
+    '<rect x="21.5" y="20.5" width="47" height="4.2" rx="2" fill="#3a3b42"/>' +
+    '<rect x="23" y="16.6" width="8" height="4.4" rx="1" fill="#3a3b42"/>' +
+    '<circle cx="64" cy="18.8" r="2.2" fill="#c33"/>' +
+    arm(30.5, 18.5, 26) + arm(59.5, 71.5, 64) +
+    `<circle cx="26" cy="33.5" r="3.9" fill="${skin}" stroke="${skinD}" stroke-width=".6"/>` +
+    `<circle cx="64" cy="33.5" r="3.9" fill="${skin}" stroke="${skinD}" stroke-width=".6"/></g>`;
+  let back = svg(shirt, skin, "back", false, hair);
+  back = back.replace('<ellipse cx="33.8" cy="31"', raise + '<ellipse cx="33.8" cy="31"');
+  return side + back;
+}
+
+function makePhotog(fromLeft) {
+  const el = document.createElement("div");
+  el.className = "walker photog";
+  el.dataset.view = "side";
+  el.innerHTML = `<div class="bubble"></div><div class="name">Fotoğrafçı</div><div class="flipper">${photogSvgs()}</div>`;
+  scene.appendChild(el);
+  return {
+    el, flipper: el.querySelector(".flipper"),
+    x: fromLeft ? -170 : innerWidth + 90, l: 0.88, dir: fromLeft ? 1 : -1,
+    mode: "in", view: "side", up: false, talking: false, bt: null, side: fromLeft ? -1 : 1
+  };
+}
+
+function csay(c, text, ms = 3200) {
+  const b = c.el.querySelector(".bubble");
+  b.textContent = text;
+  b.classList.add("show");
+  c.talking = true;
+  clearTimeout(c.bt);
+  c.bt = setTimeout(() => { b.classList.remove("show"); c.talking = false; }, ms);
+}
+
+function phBanner(title, sub, ms) {
+  const ph = state.photo;
+  const el = document.getElementById("vbanner");
+  el.querySelector("b").textContent = title;
+  el.querySelector("small").textContent = sub || "";
+  el.classList.add("show");
+  if (ph) {
+    clearTimeout(ph.bannerT);
+    ph.bannerT = setTimeout(() => el.classList.remove("show"), ms);
+  }
+}
+
+function camScale() {
+  const ph = state.photo;
+  return state.base * ph.mul * (0.75 + 0.25 * ph.cam.l) * 1.03;
+}
+
+function checkPhoto(now) {
+  if (!menu.classList.contains("gone")) return;
+  if (!state.photo && !state.simit && !state.volley && now >= state.nextPhoto) startPhoto(now);
+}
+
+function startPhoto(now) {
+  state.nextPhoto = Infinity;
+  if (!walkers.length) return;
+
+  // the photo overrides halay and solo dances
+  if (state.halay) { state.halay = false; state.halayEnd = now; }
+
+  const fromLeft = Math.random() < 0.5;
+  const cam = makePhotog(fromLeft);
+
+  for (const w of walkers) {
+    w.dance = null;
+    w.el.classList.remove("dancing");
+    w.ph = "go";
+    w.phAt = false;
+    w.sready = false;
+    w.phSp = rand(115, 175);
+    w.phRel = 0;
+    w.wp = null;
+    w.wait = 0;
+  }
+
+  const ph = state.photo = {
+    t0: now, end: now + CONFIG.PHOTO_FOR, cam, camSide: cam.side,
+    order: walkers.slice().sort((a, b) => a.px - b.px),
+    huddle: 0, mul: 1, pose: false, quiet: false, phase: "gather",
+    bannerT: null, hideT: null, chatT: now + 4000, events: []
+  };
+
+  const say1 = (t, text, ms) => ph.events.push({ t, fn: () => csay(cam, text, ms) });
+  ph.events.push({ t: 300, fn: () => phBanner("📸 Sınıf fotoğrafı!", "İki sıra olun, kameraya gülümseyin", 4200) });
+  say1(1500, "Sınıf fotoğrafı zamanı!");
+  say1(10000, "İki sıra olun bakalım!");
+  say1(20000, "Uzun boylular arkaya, kısalar öne!");
+  say1(31000, "Biraz daha sıkışın!");
+  say1(42000, "Biraz daha... Tamam, tam oldu!");
+  ph.events.push({ t: 50000, fn: () => { ph.quiet = true; cam.up = true; csay(cam, "Hazır olun, çekiyorum!", 2400); } });
+  ph.events.push({ t: 52500, fn: () => { ph.pose = true; } });
+  say1(55000, "3…", 1300);
+  say1(56500, "2…", 1300);
+  say1(58000, "1…", 1300);
+  say1(59500, "Gülümseyin! Peynir! 🧀", 2300);
+  ph.events.push({ t: 62000, fn: () => shootPhoto() });
+  ph.events.push({ t: 63000, fn: () => { cam.up = false; csay(cam, "Harika!", 1800); showPhoto(); } });
+  ph.events.push({ t: 64500, fn: () => { ph.pose = false; } });
+  ph.events.push({ t: 65500, fn: () => {
+    const crowd = walkers.filter(w => w.ph === "go").sort(() => Math.random() - 0.5).slice(0, 4);
+    const lines = PHOTO_REVIEW.slice().sort(() => Math.random() - 0.5);
+    crowd.forEach((w, i) => setTimeout(() => say(w, lines[i % lines.length]), i * 900));
+  } });
+  ph.events.push({ t: 71500, fn: () => { hidePhoto(); ph.quiet = false; } });
+  say1(72500, "Çok güzel çıktı! Teşekkürler çocuklar!", 3600);
+  ph.events.push({ t: 73500, fn: () => {
+    ph.phase = "release";
+    const t = performance.now();
+    for (const w of walkers) w.phRel = t + rand(0, 4500);
+  } });
+  ph.events.push({ t: 78000, fn: () => { cam.mode = "out"; } });
+}
+
+function joinPhoto(w) {
+  const ph = state.photo;
+  w.sready = false;
+  w.phAt = false;
+  w.phSp = rand(115, 175);
+  w.wp = null;
+  w.wait = 0;
+  if (ph.phase === "release") { w.ph = "away"; return; }
+  w.ph = "go";
+  ph.order.push(w);
+}
+
+function releasePhotoStudent(w) {
+  w.ph = "away";
+  w.phAt = false;
+  w.wp = null;
+  w.wait = 0;
+  w.el.classList.remove("posing", "waiting");
+}
+
+function stepPhoto(w, dt, now) {
+  const ph = state.photo;
+  const sPre = state.base * ph.mul * (0.75 + 0.25 * w.sl);
+  let tx, tl, speed;
+
+  if (w.ph === "go") {
+    tx = w.phX - 45;
+    tl = w.phL;
+    speed = w.phSp;
+  } else if (w.wait && now < w.wait) {
+    tx = w.x; tl = w.sl; speed = 0;
+  } else {
+    if (!w.wp) w.wp = { x: rand(10, Math.max(20, innerWidth - 100)), l: rand(0.02, 1) };
+    tx = w.wp.x; tl = w.wp.l; speed = w.speed * 1.5;
+  }
+
+  const dx = tx - w.x;
+  const dl = tl - w.sl;
+  const dist = Math.hypot(dx, dl * innerHeight * 0.42);
+  const step = speed * sPre * dt;
+  let moving = false;
+
+  if (dist > 1.2 && step > 0) {
+    if (w.ph === "go" && dist <= Math.max(step, 6)) {   // slots drift a little while the group huddles
+      w.x = tx; w.sl = tl;
+    } else if (dist <= step) {
+      w.x = tx; w.sl = tl;
+    } else {
+      const f = step / dist;
+      w.x += dx * f; w.sl += dl * f;
+      moving = true;
+    }
+    if (Math.abs(dx) > 1) w.dir = dx > 0 ? 1 : -1;
+  }
+
+  if (w.ph === "go") {
+    w.phAt = !moving && dist <= 8;
+    const cl = w.el.classList;
+    cl.toggle("posing", w.phAt && ph.pose);
+    cl.toggle("waiting", w.phAt && !ph.pose);
+  } else {
+    w.phAt = false;
+    if (w.wp && !moving && dist <= 1.5) { w.wp = null; w.wait = now + rand(700, 2800); }
+  }
+  setStand(w, !moving);
+}
+
+function updatePhoto(now, dt) {
+  const ph = state.photo;
+  if (!ph) return;
+  if (!walkers.length || now >= ph.end) { endPhoto(now); return; }
+
+  const t = now - ph.t0;
+  for (const ev of ph.events) {
+    if (!ev.done && t >= ev.t) { ev.done = true; ev.fn(); }
+  }
+
+  // students who are due to leave start roaming
+  if (ph.phase === "release") {
+    for (const w of walkers) if (w.ph === "go" && now >= w.phRel) releasePhotoStudent(w);
+  }
+
+  const base = state.base;
+  const order = ph.order = ph.order.filter(w => walkers.includes(w) && w.ph === "go");
+  const F = order.filter((_, i) => i % 2 === 0);
+  const B = order.filter((_, i) => i % 2 === 1);
+  const per = Math.max(1, F.length);
+
+  // the group gets a little bigger than the walking crowd: it is posing for the camera
+  const tightU = (per - 1) * 27 + 52, looseU = (per - 1) * 46 + 52;
+  const fit = Math.min(0.5 * innerWidth / (tightU * base * 0.9), 0.7 * innerWidth / (looseU * base * 0.9));
+  const mulT = ph.phase === "release" ? 1 : phClamp(fit, 0.45, 1.35);
+  ph.mul += (mulT - ph.mul) * Math.min(1, dt * (ph.phase === "release" ? 0.35 : 1.0));
+
+  ph.huddle = phSmooth(phClamp((t - 14000) / 38000, 0, 1));
+
+  const LF = 0.64, LB = 0.40;
+  const sF = base * ph.mul * (0.75 + 0.25 * LF);
+  const sB = base * ph.mul * (0.75 + 0.25 * LB);
+  const spU = 46 + (27 - 46) * ph.huddle;
+  const spF = spU * sF, spB = spU * sB;
+  const gcx = innerWidth / 2 - ph.camSide * 40 * sF;
+
+  F.forEach((w, j) => { w.phX = gcx + (j - (F.length - 1) / 2) * spF; w.phL = LF; });
+  const stagger = B.length === F.length ? 0.5 * spB : 0;
+  B.forEach((w, j) => { w.phX = gcx + stagger + (j - (B.length - 1) / 2) * spB; w.phL = LB; });
+
+  // chatter while everybody gets into place (nobody talks over the pose)
+  if (!ph.quiet && ph.phase === "gather" && now >= ph.chatT && F.length) {
+    const w = pick(order);
+    if (w && w.phAt) say(w, pick(PHOTO_SAYS));
+    ph.chatT = now + rand(2200, 4200);
+  }
+
+  // the photographer
+  const c = ph.cam;
+  const s = camScale();
+  const halfF = (F.length - 1) * spF / 2 + 24 * sF;
+  const camCx = phClamp(gcx + ph.camSide * (halfF + 36 * s), 50, innerWidth - 50);
+
+  if (c.mode === "in") {
+    const dx = camCx - 45 - c.x;
+    const step = 120 * s * dt;
+    c.dir = dx >= 0 ? 1 : -1;
+    c.view = "side";
+    if (Math.abs(dx) <= step) { c.x = camCx - 45; c.mode = "stand"; c.view = "back"; }
+    else c.x += Math.sign(dx) * step;
+  } else if (c.mode === "stand") {
+    c.view = "back";
+    c.x += (camCx - 45 - c.x) * Math.min(1, dt * 2.5);
+  } else if (c.mode === "out") {
+    c.view = "side";
+    c.dir = ph.camSide;
+    c.up = false;
+    c.x += ph.camSide * 95 * s * dt;
+    if (c.x < -260 || c.x > innerWidth + 200) { c.el.remove(); c.mode = "gone"; }
+  }
+}
+
+function renderPhoto(now) {
+  const ph = state.photo;
+  if (!ph) return;
+  const c = ph.cam;
+  if (c.mode === "gone") return;
+  const s = camScale();
+  const h = 150 * s;
+  const foot = innerHeight * 0.52 + c.l * innerHeight * 0.42;
+  c.el.style.height = `${h}px`;
+  c.el.style.transform = `translate(${c.x}px, ${foot - h}px)`;
+  c.el.style.zIndex = c.talking ? 9000 : Math.round(foot) + 1;
+  c.flipper.style.transform = `scale(${c.view === "side" && c.dir < 0 ? -s : s}, ${s})`;
+  if (c.el.dataset.view !== c.view) c.el.dataset.view = c.view;
+  c.el.classList.toggle("standing", c.mode === "stand");
+  c.el.classList.toggle("up", c.up && c.mode === "stand");
+}
+
+function shootPhoto() {
+  const fl = document.getElementById("flash");
+  fl.classList.remove("go");
+  void fl.offsetWidth;
+  fl.classList.add("go");
+  snapPhoto();
+}
+
+// the picture is a frozen copy of the real scene: backdrop + the students, cropped round the group and enlarged
+function snapPhoto() {
+  const ph = state.photo;
+  const grp = ph.order.filter(w => w.phAt);
+  const use = grp.length ? grp : walkers;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const w of use) {
+    const s = w.ss || 1;
+    x0 = Math.min(x0, w.sx - 40 * s); x1 = Math.max(x1, w.sx + 40 * s);
+    y0 = Math.min(y0, w.stop + 2 * s); y1 = Math.max(y1, w.sf + 5 * s);
+  }
+  const bw = Math.max(40, x1 - x0), bh = Math.max(40, y1 - y0);
+  const fw = Math.round(Math.min(innerWidth * 0.84, innerHeight * 0.7 * 1.5, 980));
+  const fh = Math.round(fw / 1.5);
+  const k = Math.min(fw / (bw * 1.18), fh / (bh * 1.32));
+  const tx = (fw - bw * k) / 2 - x0 * k;
+  const ty = (fh - bh * k) / 2 - y0 * k;
+
+  const win = document.querySelector("#photo .pwin");
+  win.textContent = "";
+  win.style.width = fw + "px";
+  win.style.height = fh + "px";
+
+  const world = document.createElement("div");
+  world.className = "pworld";
+  world.style.width = innerWidth + "px";
+  world.style.height = innerHeight + "px";
+  world.style.transform = `translate(${tx}px, ${ty}px) scale(${k})`;
+  for (const id of ["sky", "hills", "grass", "path"]) {
+    const node = document.getElementById(id);
+    if (node) world.appendChild(node.cloneNode(true));
+  }
+  for (const w of walkers) {
+    const copy = w.el.cloneNode(true);
+    const b = copy.querySelector(".bubble");
+    if (b) b.classList.remove("show");
+    world.appendChild(copy);
+  }
+  win.appendChild(world);
+
+  const stamp = document.createElement("div");
+  stamp.className = "pstamp";
+  stamp.textContent = new Date().toLocaleDateString("tr-TR");
+  win.appendChild(stamp);
+  document.querySelector("#photo .pcap").textContent = "Sınıf fotoğrafı" + (state.current ? " · " + state.current : "");
+}
+
+function showPhoto() {
+  document.getElementById("pdim").classList.add("show");
+  document.getElementById("photo").classList.add("show");
+}
+
+function hidePhoto() {
+  document.getElementById("pdim").classList.remove("show");
+  document.getElementById("photo").classList.remove("show");
+}
+
+function cleanupPhoto() {
+  const ph = state.photo;
+  if (!ph) return;
+  clearTimeout(ph.bannerT);
+  clearTimeout(ph.cam.bt);
+  ph.cam.el.remove();
+  hidePhoto();
+  document.getElementById("vbanner").classList.remove("show");
+  document.getElementById("flash").classList.remove("go");
+  state.photo = null;
+}
+
+function endPhoto(now) {
+  if (!state.photo) return;
+  for (const w of walkers) {
+    if (w.ph) w.lane = phClamp(w.sl, 0, 1);
+    if (w.ph) w.dir = Math.random() < 0.5 ? 1 : -1;
+    w.ph = null;
+    w.phAt = false;
+    w.sready = false;
+    w.wp = null;
+    w.wait = 0;
+    w.stand = false;
+    w.el.classList.remove("posing", "waiting", "standing");
+  }
+  cleanupPhoto();
+  state.nextHalay = Math.max(state.nextHalay, now + CONFIG.SIMIT_HALAY_DELAY);
+}
+/* =====================  /CLASS PHOTO SCENE  ===================== */
 
 /* =====================  ARTICULATED PLAYER RIG  ===================== */
 // While the volleyball match runs, every student is drawn as a jointed side-view figure instead of the
@@ -2536,7 +3019,7 @@ function planVolleyMatch() {
 
 function checkVolley(now) {
   if (!menu.classList.contains("gone")) return;
-  if (!state.volley && !state.simit && now >= state.nextVolley) startVolley(now);
+  if (!state.volley && !state.simit && !state.photo && now >= state.nextVolley) startVolley(now);
 }
 
 function startVolley(now) {
@@ -2850,7 +3333,7 @@ function checkHalay(now) {
   if (!menu.classList.contains("gone")) return;
 
   // the simit scene always wins: no halay while it runs or is about to start
-  const simitBusy = !!state.simit || !!state.volley || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS;
+  const simitBusy = !!state.simit || !!state.volley || !!state.photo || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
 
   if (!state.halay && !simitBusy && now >= state.nextHalay && walkers.length) {
     state.halay = true;
@@ -2872,6 +3355,7 @@ function tick(now) {
   state.lastFrame = now;
 
   checkSimit(now);
+  checkPhoto(now);
   checkHalay(now);
 
   const n = Math.max(walkers.length, state.expected);
@@ -2880,6 +3364,7 @@ function tick(now) {
   checkVolley(now);
   updateSimit(now, dt);
   updateVolley(now, dt);
+  updatePhoto(now, dt);
 
   const e0 = ensureEllipse(walkers.length || 1);
   const rotD = (Math.min(now, state.halayEnd) - state.halayStart) * CONFIG.HALAY_SPEED / 1000;
@@ -2901,7 +3386,7 @@ function tick(now) {
     const e = w.hk * w.hk * (3 - 2 * w.hk);
 
     // the simit scene takes over once any dance / halay pose has faded out
-    const sceneMode = state.simit && w.sm ? "simit" : (state.volley && w.vb ? "volley" : null);
+    const sceneMode = state.simit && w.sm ? "simit" : (state.volley && w.vb ? "volley" : (state.photo && w.ph ? "photo" : null));
     const sceneOn = !!sceneMode && w.hk <= 0 && w.k < 0.03;
     if (sceneOn && !w.sready) {
       w.sready = true;
@@ -2915,6 +3400,7 @@ function tick(now) {
 
     if (sceneOn) {
       if (sceneMode === "simit") stepScene(w, dt, now);
+      else if (sceneMode === "photo") stepPhoto(w, dt, now);
       else stepVolley(w, dt, now);
       L = w.sl;
     }
@@ -2927,7 +3413,8 @@ function tick(now) {
       L += ((tf - innerHeight * 0.52) / (innerHeight * 0.42) - L) * e;
     }
 
-    const s = base * (0.75 + 0.25 * L) * (1 + 0.7 * w.k) * (1 + (e0.hs - 1) * e);
+    const pm = sceneOn && sceneMode === "photo" ? state.photo.mul : 1;
+    const s = base * pm * (0.75 + 0.25 * L) * (1 + 0.7 * w.k) * (1 + (e0.hs - 1) * e);
     const h = 150 * s;
 
     if (sceneOn) {
@@ -2948,6 +3435,7 @@ function tick(now) {
     w.px = px;
     const arrived = state.halay && w.hk >= 1;
     let view = "side";
+    if (sceneOn && sceneMode === "photo" && w.phAt) view = "front";
 
     if (arrived) {
       const fx = -Math.cos(th);
@@ -2988,6 +3476,7 @@ function tick(now) {
     if (now > w.nextTalk) {
       // nobody chats during the halay: the speech bubbles would cover the dancers
       if (state.halay) { w.nextTalk = now + rand(4000, 8000); continue; }
+      if (state.photo && state.photo.quiet) { w.nextTalk = now + rand(2000, 4000); continue; }
       say(w);
       w.nextTalk = now + rand(0.7, 1.3) * Math.max(5000, n * 1400);
     }
@@ -2997,6 +3486,7 @@ function tick(now) {
 
   renderVendor(now);
   renderVolley(now);
+  renderPhoto(now);
   requestAnimationFrame(tick);
 }
 
@@ -3035,7 +3525,8 @@ function faceSvg(w) {
 }
 
 function startDance() {
-  if (!menu.classList.contains("gone") || state.halay || state.simit || state.volley) return;
+  if (!menu.classList.contains("gone") || state.halay || state.simit || state.volley || state.photo) return;
+  if (performance.now() >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextSimit - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextVolley - CONFIG.SIMIT_GUARD_MS) return;
 
@@ -3075,6 +3566,7 @@ function openClass(className) {
   state.nextHalay = performance.now() + CONFIG.HALAY_EVERY;
   state.nextSimit = performance.now() + CONFIG.SIMIT_FIRST;
   state.nextVolley = performance.now() + CONFIG.VOLLEY_AT;
+  state.nextPhoto = performance.now() + CONFIG.PHOTO_AT;
 
   const titleNode = document.getElementById("title").firstChild;
   if (titleNode) titleNode.textContent = "Konuşma sınavı devam ediyor – " + className;
@@ -3113,6 +3605,8 @@ function closeClass() {
     state.volley = null;
   }
   state.nextVolley = Infinity;
+  cleanupPhoto();
+  state.nextPhoto = Infinity;
   state.current = null;
   menu.classList.remove("gone");
 }
