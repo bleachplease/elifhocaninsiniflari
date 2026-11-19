@@ -691,6 +691,14 @@
   }
   #vbanner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   #vbanner small { display: block; font-size: 0.42em; font-weight: normal; opacity: 0.8; margin-top: 2px; }
+
+  /* ---------- Articulated volleyball figure (replaces the flat sprite during the match) ---------- */
+  .rig { position: absolute; inset: 0; width: 100%; height: 100%; display: none; overflow: visible; pointer-events: none; }
+  .walker.vbx[data-view="side"] .rig { display: block; }
+  .walker.vbx .person, .walker.vbx .jersey { display: none !important; }
+  .rig .vj { display: none; }
+  .walker.jer .rig .vj { display: inline; }
+  .walker.jer .rig .vp { display: none; }
 </style>
 </head>
 <body>
@@ -831,7 +839,7 @@ const CONFIG = {
 };
 
 const GIRL_NAMES = new Set([
-  "emine", "melis", "zeynep", "gamze", "yaren", "öykü", "nisanur", "nisa", "eylül", "elif",
+  "emine", "melis", "zeynep", "gamze", "yaren", "öykü", "nisanur", "nisa", "eylül", "elif", "ırmak", "irmak",
   "saliha", "sümeyye", "ecrin", "beren", "kader", "irem", "elifsena", "kamile", "gizem", "aişe", "ela",
   "mira", "sude", "hatice", "yağmur", "ada", "rümeysa", "ece", "eda", "dilan", "berfin", "hümeyra", "hale",
   "selin", "esma", "hayrunnisa", "deniz", "eysa", "göksu", "zehra", "kevser", "meryem", "simay", "nur",
@@ -1006,7 +1014,7 @@ function addStudent(name, index = walkers.length) {
   const girl = isGirl(cleanName);
   const hair = pick(HAIRS);
 
-  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl, hair)}${jerseySvg()}${eatSvg(shirt, skin)}</div>`;
+  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl, hair)}${jerseySvg()}${rigSvg(shirt, skin, girl, hair)}${eatSvg(shirt, skin)}</div>`;
   el.querySelector(".name").textContent = cleanName;
   scene.appendChild(el);
 
@@ -1049,7 +1057,9 @@ function addStudent(name, index = walkers.length) {
     cph: 0,
     platform: 0,
     armUntil: 0,
-    bt: null
+    bt: null,
+    vbx: false, gph: rand(0, 6.28), gv: 0, rgs: rand(0, 6.28), rp: null, rf: null, rgR: null, rgm: "", rgA: -1, rgW: -1,
+    mood: null, acts: null, jpre: null, whisUntil: 0, nextBlink: 0, blinkT: -1e9, hairA: 0, hairV: 0, exert: 0
   };
   w.px = w.x;
 
@@ -1539,6 +1549,485 @@ function renderVendor(now) {
 }
 /* =====================  /SIMIT SCENE  ===================== */
 
+/* =====================  ARTICULATED PLAYER RIG  ===================== */
+// While the volleyball match runs, every student is drawn as a jointed side-view figure instead of the
+// flat sprite: two-bone legs and arms solved with inverse kinematics, a real gait cycle, crouch /
+// take-off / tuck / landing, serve / spike / set / bump / dig actions whose hands actually meet the
+// ball, and a face that follows the ball, blinks, strains, cheers, sulks and talks.
+const RG = { U: 23, F: 21.5, T: 23, S: 23 };
+const RAD = Math.PI / 180;
+const rgClamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const rgLerp = (a, b, t) => a + (b - a) * t;
+const rgSmooth = t => { t = rgClamp(t, 0, 1); return t * t * (3 - 2 * t); };
+const rgF2 = v => v.toFixed(2);
+
+function rigSvg(shirt, skin, girl, hair) {
+  const u = ++uidCounter;
+  const skinD = shade(skin, -0.16), skinL = shade(skin, 0.08), skinDD = shade(skin, -0.28);
+  const hairL = shade(hair, 0.28), hairD = shade(hair, -0.35);
+  const pA = "#3a4868", pB = "#4d5d82";
+  const lg = (id, a, b, c) => `<linearGradient id="${id}${u}" x1="0" x2="1"><stop offset="0" stop-color="${a}"/>${c ? `<stop offset=".55" stop-color="${b}"/><stop offset="1" stop-color="${c}"/>` : `<stop offset="1" stop-color="${b}"/>`}</linearGradient>`;
+  const defs = `<defs>
+    ${lg("rs", shade(shirt, .14), shirt, shade(shirt, -.24))}
+    ${lg("rk", skinL, skin, skinD)}
+    ${lg("rd", skin, skinDD)}
+    ${lg("ra", shade(pA, .1), shade(pA, -.3))}
+    ${lg("rb", shade(pB, .1), shade(pB, -.3))}
+    <radialGradient id="rf${u}" cx=".42" cy=".36" r=".8"><stop offset="0" stop-color="${skinL}"/><stop offset=".6" stop-color="${skin}"/><stop offset="1" stop-color="${shade(skin, -.14)}"/></radialGradient>
+    <linearGradient id="rh${u}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${hairL}"/><stop offset=".45" stop-color="${hair}"/><stop offset="1" stop-color="${hairD}"/></linearGradient>
+    <radialGradient id="rg${u}"><stop offset="0" stop-color="#000" stop-opacity=".4"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  </defs>`;
+
+  const arm = (cls, fill) => `<g class="rg-${cls}">
+      <rect x="-3.3" y="-2.6" width="6.6" height="${RG.U + 3}" rx="3.3" fill="url(#${fill}${u})"/>
+      <g class="rg-${cls}f">
+        <rect x="-3" y="-1.6" width="6" height="${RG.F}" rx="3" fill="url(#${fill}${u})"/>
+        <ellipse cx=".3" cy="${RG.F}" rx="3.2" ry="4" fill="${skin}"/>
+        <ellipse cx="2.6" cy="${RG.F - 1.6}" rx="1.15" ry="2.1" fill="${skin}" transform="rotate(-28 2.6 ${RG.F - 1.6})"/>
+      </g>
+      <rect class="vp" x="-4.1" y="-3.6" width="8.2" height="13" rx="3.6" fill="url(#rs${u})"/>
+      <rect class="vj" x="-4.1" y="-3.6" width="8.2" height="13" rx="3.6" style="fill:var(--jc,#d62f2f)"/>
+    </g>`;
+
+  const shoe = `<path d="M-5.6 -1.2 L5.4 -1.2 L5.8 3.6 Q12 4.6 13.3 7.4 Q13.5 10 11 10 L-5.6 10 Q-7.3 9.5 -7.1 5Z" fill="#2d2d33"/><path d="M-7.1 8.1 L13.5 8.1 Q13.7 11.2 11 11.2 L-5.6 11.2 Q-7.3 10.7 -7.1 8.1Z" fill="#e9e6df"/><path d="M3.5 1.2 L9.6 4.2" stroke="#8a8a92" stroke-width=".6" stroke-linecap="round" opacity=".6"/>`;
+  const leg = (cls, grad) => `<g class="rg-${cls}">
+      <rect class="vp" x="-5.4" y="-3.6" width="10.8" height="${RG.T + 3.6}" rx="4.6" fill="url(#${grad}${u})"/>
+      <rect class="vj" x="-5" y="-3.6" width="10" height="${RG.T + 3.6}" rx="4.4" fill="url(#rk${u})"/>
+      <rect class="vj" x="-5.8" y="-3.8" width="11.6" height="15.5" rx="4.6" style="fill:var(--sh,#252c47)"/>
+      <g class="rg-${cls}s">
+        <rect class="vp" x="-4.9" y="-2.6" width="9.8" height="${RG.S + 2.6}" rx="4.3" fill="url(#${grad}${u})"/>
+        <rect class="vj" x="-4.4" y="-2.6" width="8.8" height="${RG.S + 2.6}" rx="4" fill="url(#rk${u})"/>
+        <rect class="vj" x="-4.6" y="11.5" width="9.2" height="8.5" rx="1" fill="#f1f1ec"/>
+        <ellipse class="vj" cx=".6" cy=".4" rx="5.5" ry="4.5" fill="#2a2f3d"/>
+        <g class="rg-${cls}f">${shoe}</g>
+      </g>
+    </g>`;
+
+  const torso = "M37 53 Q37 46.5 43 45.5 L49 45.5 Q54.5 46.5 54 53 L54.4 71 Q55 81 53.6 93 L36.4 93 Q37.6 81 37 71 Z";
+  const mouth = (name, inner) => `<g class="rg-m-${name}" style="display:${name === "neutral" ? "" : "none"}">${inner}</g>`;
+  const lip = "#a8504a", inside = "#6e2424";
+  const mouths =
+    mouth("neutral", `<path d="M53.6 37 Q55.2 37.8 56.8 37.1" stroke="${lip}" stroke-width="1" fill="none" stroke-linecap="round"/>`) +
+    mouth("press", `<path d="M53.8 37.3 L56.7 37.2" stroke="${lip}" stroke-width="1.15" fill="none" stroke-linecap="round"/>`) +
+    mouth("smile", `<path d="M53.2 36.5 Q55.2 39.2 57 36.7" stroke="${lip}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`) +
+    mouth("grin", `<path d="M53 36.2 Q55 36.9 57.1 36.2 Q56.8 40.2 55 40.4 Q53.4 40.1 53 36.2Z" fill="${inside}"/><path d="M53.3 36.5 Q55.1 37.1 56.9 36.5 L56.8 37.8 Q55 38.2 53.4 37.8Z" fill="#fff"/>`) +
+    mouth("effort", `<path d="M53.4 35.8 Q57.3 35.8 57.2 37.5 Q57.4 41 55 41.2 Q53 40.8 53.2 38Z" fill="${inside}"/><ellipse cx="55" cy="39.9" rx="1.4" ry=".85" fill="#c4585a"/><path d="M53.7 36.1 Q55.5 36.5 57 36.1" stroke="#fff" stroke-width=".9" fill="none"/>`) +
+    mouth("o", `<ellipse cx="55.4" cy="37.8" rx="1.35" ry="1.75" fill="${inside}" stroke="#b8625c" stroke-width=".55"/>`) +
+    mouth("frown", `<path d="M53.2 38.9 Q55.2 36.8 57 38.7" stroke="${lip}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`) +
+    mouth("grit", `<rect x="53.2" y="36.2" width="3.9" height="2.6" rx=".9" fill="#fff" stroke="#8a4440" stroke-width=".6"/><path d="M53.2 37.5 H57.1" stroke="#8a4440" stroke-width=".4"/>`);
+
+  const hairFront = girl
+    ? `<path d="M34.6 28 Q31.4 13 46.4 12.8 Q58.6 13.4 56.4 25.4 Q54.4 20.4 49 18.8 Q44.4 19.2 41.6 23 Q40.6 28 41.6 33 Q38.4 31 36.4 36 Q34.2 33 34.6 28Z" fill="url(#rh${u})"/>`
+    : `<path d="M34.6 29 Q31.6 13 46 13 Q58.2 13.8 56.6 25 Q54.4 20.4 49.2 19 Q44.6 19.4 41.8 23.2 L41 29 Q38 30 36.6 37 Q34 34 34.6 29Z" fill="url(#rh${u})"/>`;
+
+  const head = `<g class="rg-head">
+      <ellipse cx="43" cy="31" rx="2.4" ry="3.5" fill="${skin}" stroke="${skinD}" stroke-width=".5"/><path d="M42.4 29.6 Q44 30.4 43.2 32.8" stroke="${skinD}" stroke-width=".5" fill="none"/>
+      <path d="M35 27 Q35 16 46 16 Q56.6 16 56.6 26 Q56.7 28.4 57.6 30.4 Q59 32 57.2 33 Q57.4 35 56.2 37 Q55.4 38.3 54.2 39.4 Q50.4 43.8 45 43.8 Q39 43.8 36 38.4 Q34.6 33 35 27Z" fill="url(#rf${u})"/>
+      <circle class="rg-bl" cx="52" cy="35" r="2.5" fill="#e58a7a" opacity=".16"/>
+      <g class="rg-eye" transform="translate(52 28.8)"><ellipse rx="2.3" ry="1.75" fill="#fbfaf6"/><g class="rg-pup" transform="translate(.5 0)"><circle r="1.3" fill="#5a3d2b"/><circle r=".68" fill="#0d0d0d"/><circle cx=".38" cy="-.42" r=".34" fill="#fff"/></g></g>
+      <path class="rg-lid" d="M49.4 28.4 Q52 26.4 54.6 28.4" stroke="${hairD}" stroke-width=".9" fill="none" stroke-linecap="round"/>
+      <path class="rg-arch" d="M49.6 29.8 Q52 26.6 54.4 29.8" stroke="${hairD}" stroke-width="1.1" fill="none" stroke-linecap="round" style="display:none"/>
+      <path d="M49.8 30.9 Q52 32 54.2 30.9" stroke="${skinD}" stroke-width=".4" fill="none" opacity=".6"/>
+      <g class="rg-brow"><path d="M49.2 25.4 Q51.8 24 54.4 25.4" stroke="${hairD}" stroke-width="1.15" fill="none" stroke-linecap="round"/></g>
+      ${mouths}
+      <path class="rg-sweat" d="M48 32.4 q-1.3 2.2 0 3.3 q1.3 -1.1 0 -3.3z" fill="#bfe6ff" stroke="#7fb6dd" stroke-width=".3" opacity="0"/>
+      <g class="rg-whistle" style="display:none"><path d="M54.6 38.4 L60.6 38.4 L60.6 41 L56.6 41 Q54.6 40.8 54.6 38.4Z" fill="#cfd3dc" stroke="#7b8190" stroke-width=".45"/><circle cx="59.6" cy="39.4" r=".7" fill="#7b8190"/></g>
+      ${hairFront}
+      <path d="M40 16.8 Q46 14 53 16.6" stroke="${hairL}" stroke-width="1" fill="none" opacity=".5" stroke-linecap="round"/>
+    </g>`;
+
+  const body = `
+    ${arm("aF", "rd")}
+    ${girl ? `<g class="rg-hb"><path d="M37 21 Q28.5 38 28.5 66 Q28.5 80 35.5 85 L46 82 L47 38Z" fill="url(#rh${u})"/></g>` : ""}
+    <path class="vp" d="${torso}" fill="url(#rs${u})"/>
+    <path class="vj" d="${torso}" style="fill:var(--jc,#d62f2f)"/>
+    <rect class="vj" x="36.6" y="62" width="17.8" height="3.4" fill="#fff" opacity=".9"/>
+    <rect x="36.6" y="89.5" width="17.4" height="4" fill="#262a38"/>
+    ${arm("aN", "rk")}
+    <rect x="42" y="38" width="8.4" height="12" rx="3" fill="url(#rk${u})"/><ellipse cx="46" cy="43.8" rx="6.5" ry="3" fill="#000" opacity=".14"/>
+    ${head}`;
+
+  return `<svg class="rig" viewBox="0 0 90 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${defs}
+    <ellipse class="rg-sh" cx="45" cy="147" rx="22" ry="3.4" fill="url(#rg${u})"/>
+    ${leg("lF", "ra")}${leg("lN", "rb")}
+    <g class="rg-body"><g class="rg-lean"><g transform="translate(-45 -91)">${body}</g></g></g>
+  </svg>`;
+}
+
+/* ---- maths ---- */
+
+// two-bone IK. (dx, dy) = target relative to the joint root (y down). Returns [rootAngle, flex] in degrees,
+// angles measured forward (towards +x) from "hanging straight down". sgn = +1 knee bends forward, -1 elbow.
+function rgIK(dx, dy, A, B, sgn) {
+  const d = rgClamp(Math.hypot(dx, dy), Math.abs(A - B) + 0.8, A + B - 0.05);
+  const phi = Math.atan2(dx, dy);
+  const al = Math.acos(rgClamp((A * A + d * d - B * B) / (2 * A * d), -1, 1));
+  const fl = Math.PI - Math.acos(rgClamp((A * A + B * B - d * d) / (2 * A * B), -1, 1));
+  return [(phi + sgn * al) / RAD, fl / RAD];
+}
+
+function rgBlend(a, b, t) {
+  for (const k in b) a[k] = rgLerp(a[k], b[k], t);
+  return a;
+}
+
+function rgJumpCurve(u, pk) {
+  const x = u < pk ? (u - pk) / pk : (u - pk) / (1 - pk);
+  return Math.max(0, 1 - x * x);
+}
+
+// arm angles (torso frame) that put the hand on the surface of the ball
+function rgReach(P, B) {
+  const th = P.lean * RAD, cs = Math.cos(th), sn = Math.sin(th);
+  const vx = B.x - (45 + P.hx), vy = B.y - (91 + P.hy);
+  const dx = vx * cs + vy * sn;
+  const dy = -vx * sn + vy * cs + 39;
+  const d = Math.hypot(dx, dy) || 1;
+  const k = Math.max(0, d - B.r * 0.85) / d;
+  return rgIK(dx * k, dy * k, RG.U, RG.F, -1);
+}
+
+/* ---- base poses ---- */
+
+function rgGait(w, dt, moving, sPre) {
+  const tv = moving ? Math.min(520, w.vsp) / sPre : 0;
+  w.gv += (tv - w.gv) * Math.min(1, dt * 9);
+  const A = rgClamp(7 + 0.05 * w.gv, 7, 19);
+  w.gph += rgClamp(Math.PI * w.gv / (2 * A), 0, 19) * dt;
+  const c = Math.cos(w.gph), sn = Math.sin(w.gph);
+  const run = rgSmooth((w.gv - 120) / 180);
+  const lift = 3 + A * 0.5;
+  const amp = 14 + 24 * run;
+  const elbow = 16 + 55 * run;
+  return {
+    hx: 0, hy: 1.1 + run * 3 + (A * A / 90) * Math.abs(c), lean: 2.5 + run * 8, head: 0,
+    nx: A * c, nl: Math.max(0, -sn) * lift, npf: sn < 0 ? -18 * c : 0,
+    fx: -A * c, fl: Math.max(0, sn) * lift, fpf: sn > 0 ? 18 * c : 0,
+    na: 6 - amp * c, ne: elbow + 6 * Math.max(0, sn),
+    fa: 6 + amp * c, fe: elbow + 6 * Math.max(0, -sn)
+  };
+}
+
+function rgIdle(w, now, vb) {
+  const s = w.rgs, br = Math.sin(now / 900 + s), sway = Math.sin(now / 1700 + s);
+  if (w.vb === "player" && vb.phase === "point") {
+    const bob = Math.sin(now / 330 + s);
+    return { hx: 2, hy: 7 + 0.9 * bob, lean: 11 + 0.8 * bob, head: -4, nx: 9, nl: 0, npf: 0, fx: -8, fl: 0, fpf: 0, na: 42 + 3 * bob, ne: 72, fa: 36, fe: 78 };
+  }
+  if (w.vb === "ref") {
+    return { hx: 0, hy: 0.4 + 0.2 * br, lean: 0.5 + 0.5 * br, head: 0, nx: 3, nl: 0, npf: 0, fx: -3, fl: 0, fpf: 0, na: 22, ne: 62, fa: 20, fe: 66 };
+  }
+  return { hx: 1.2 * sway, hy: 0.6 + 0.25 * br, lean: 0.8 + 0.7 * br, head: 0, nx: 4 + sway, nl: 0, npf: 0, fx: -3 - sway, fl: 0, fpf: 0, na: 7 + 1.5 * br, ne: 16, fa: 5, fe: 18 };
+}
+
+/* ---- jumps ---- */
+
+function rgJumpPose(w, P, now) {
+  const J = w.jmp, Jp = w.jpre;
+  if (Jp && now < Jp.t0 && now >= Jp.t0 - 380) {
+    const c = rgSmooth((now - (Jp.t0 - 380)) / 380);
+    P.hy += 13 * c; P.lean += 10 * c; P.nx += 5 * c; P.fx -= 5 * c;
+  }
+  if (!J) return false;
+  const hard = J.kind === "spike" || J.kind === "serve";
+  if (now >= J.t0 && now <= J.t1) {
+    const u = (now - J.t0) / (J.t1 - J.t0);
+    const kt = (hard ? 1 : 0.55) * rgSmooth(u / 0.3) * (1 - rgSmooth((u - 0.8) / 0.2));
+    const push = 1 - rgSmooth(u / 0.3);
+    P.hx = 0; P.hy = 2 + 3 * kt;
+    P.nx = 3 - 13 * kt;  P.nl = 24 * kt; P.npf = 38 * push + 10 * kt;
+    P.fx = -3 + 6 * kt;  P.fl = 17 * kt; P.fpf = 34 * push + 8 * kt;
+    return true;
+  }
+  if (now > J.t1) {
+    const lt = (now - J.t1) / 400;
+    if (lt < 1) {
+      const b = Math.sin(Math.PI * Math.pow(lt, 0.7)) * (hard ? 1 : 0.5);
+      P.hy += 13 * b; P.lean += 9 * b; P.nx += 7 * b; P.fx -= 6 * b;
+    }
+  }
+  return false;
+}
+
+/* ---- timed actions (tau = ms relative to the moment of ball contact) ---- */
+
+const RG_WIN = { serve: [1300, 560], spike: [880, 560], bump: [520, 460], set: [460, 420], dig: [400, 760] };
+const RG_FR = {
+  serve: [
+    [-1300, { lean: 3, na: 8, ne: 18, fa: 60, fe: 80, r: 0, rf: 1 }],
+    [-720, { lean: 3, na: 8, ne: 18, fa: 60, fe: 80, r: 0, rf: 1 }],
+    [-560, { lean: 0, na: -35, ne: 10, fa: 150, fe: 10, r: 0, rf: 1 }],
+    [-330, { lean: -6, na: 120, ne: 50, fa: 150, fe: 10, r: 0, rf: 0.5 }],
+    [-160, { lean: -8, na: 200, ne: 135, fa: 130, fe: 20, r: 0, rf: 0 }],
+    [-45, { lean: 6, na: 178, ne: 70, fa: 100, fe: 30, r: 0.4, rf: 0 }],
+    [0, { lean: 16, na: 170, ne: 8, fa: 70, fe: 40, r: 1, rf: 0 }],
+    [110, { lean: 20, na: 120, ne: 12, fa: 40, fe: 50, r: 0, rf: 0 }],
+    [300, { lean: 10, na: 50, ne: 20, fa: 25, fe: 30, r: 0, rf: 0 }],
+    [560, { lean: 4, na: 15, ne: 20, fa: 12, fe: 20, r: 0, rf: 0 }]
+  ],
+  spike: [
+    [-880, { lean: 6, na: 35, ne: 50, fa: 30, fe: 55, r: 0, rf: 0 }],
+    [-640, { lean: 14, na: -35, ne: 10, fa: -30, fe: 10, r: 0, rf: 0 }],
+    [-500, { lean: 10, na: -45, ne: 8, fa: -40, fe: 8, r: 0, rf: 0 }],
+    [-300, { lean: 2, na: 120, ne: 40, fa: 105, fe: 25, r: 0, rf: 0 }],
+    [-160, { lean: -8, na: 200, ne: 135, fa: 125, fe: 18, r: 0, rf: 0 }],
+    [-45, { lean: 6, na: 178, ne: 70, fa: 100, fe: 30, r: 0.4, rf: 0 }],
+    [0, { lean: 16, na: 170, ne: 8, fa: 70, fe: 40, r: 1, rf: 0 }],
+    [110, { lean: 20, na: 120, ne: 12, fa: 40, fe: 50, r: 0, rf: 0 }],
+    [300, { lean: 10, na: 50, ne: 20, fa: 25, fe: 30, r: 0, rf: 0 }],
+    [560, { lean: 4, na: 15, ne: 20, fa: 12, fe: 20, r: 0, rf: 0 }]
+  ],
+  bump: [
+    [-520, { hy: 9, lean: 14, nx: 10, fx: -8, na: 45, ne: 60, fa: 40, fe: 65, r: 0 }],
+    [-300, { hy: 15, lean: 22, nx: 13, fx: -10, na: 50, ne: 8, fa: 48, fe: 8, r: 0.6 }],
+    [-60, { hy: 16, lean: 24, nx: 13, fx: -10, na: 52, ne: 5, fa: 50, fe: 5, r: 1 }],
+    [0, { hy: 15, lean: 20, nx: 13, fx: -10, na: 58, ne: 5, fa: 56, fe: 5, r: 1 }],
+    [140, { hy: 10, lean: 14, nx: 11, fx: -9, na: 80, ne: 5, fa: 78, fe: 5, r: 0.3 }],
+    [460, { hy: 6, lean: 10, nx: 8, fx: -7, na: 42, ne: 70, fa: 36, fe: 78, r: 0 }]
+  ],
+  set: [
+    [-460, { hy: 5, lean: 6, na: 40, ne: 70, fa: 36, fe: 76, r: 0 }],
+    [-250, { hy: 7, lean: 2, na: 125, ne: 95, fa: 122, fe: 98, r: 0.5 }],
+    [-60, { hy: 6, lean: -2, na: 128, ne: 92, fa: 126, fe: 94, r: 1 }],
+    [0, { hy: -0.5, lean: -4, na: 150, ne: 50, fa: 148, fe: 52, r: 1 }],
+    [120, { hy: -1, lean: -5, na: 168, ne: 12, fa: 166, fe: 14, r: 0.5 }],
+    [420, { hy: 3, lean: 3, na: 30, ne: 60, fa: 28, fe: 66, r: 0 }]
+  ],
+  dig: [
+    [-400, { hy: 10, lean: 14, nx: 10, fx: -8, na: 45, ne: 60, fa: 40, fe: 65, r: 0 }],
+    [-150, { hy: 20, lean: 26, nx: 20, fx: -16, na: 70, ne: 10, fa: -30, fe: 20, r: 0.5 }],
+    [0, { hy: 24, lean: 30, nx: 24, fx: -18, na: 80, ne: 5, fa: -40, fe: 15, r: 1 }],
+    [250, { hy: 23, lean: 30, nx: 24, fx: -18, na: 70, ne: 8, fa: -40, fe: 15, r: 0.3 }],
+    [760, { hy: 6, lean: 10, nx: 8, fx: -7, na: 30, ne: 50, fa: 28, fe: 60, r: 0 }]
+  ]
+};
+
+function rgKF(fr, tau) {
+  if (tau <= fr[0][0]) return fr[0][1];
+  for (let i = 1; i < fr.length; i++) {
+    if (tau <= fr[i][0]) {
+      const a = fr[i - 1], b = fr[i], t = (tau - a[0]) / (b[0] - a[0]);
+      const o = {};
+      for (const k in b[1]) o[k] = rgLerp(a[1][k], b[1][k], t);
+      return o;
+    }
+  }
+  return fr[fr.length - 1][1];
+}
+
+function rgFindAct(w, now) {
+  if (!w.acts) return null;
+  for (const a of w.acts) {
+    const win = RG_WIN[a.kind], tau = now - a.t;
+    if (tau >= -win[0] && tau <= win[1]) return { kind: a.kind, tau, win };
+  }
+  return null;
+}
+
+function rgActPose(P, A, B) {
+  const o = rgKF(RG_FR[A.kind], A.tau);
+  const wgt = rgSmooth((A.tau + A.win[0]) / 220) * (1 - rgSmooth((A.tau - (A.win[1] - 260)) / 260));
+  for (const k in o) if (k !== "r" && k !== "rf") P[k] = rgLerp(P[k], o[k], wgt);
+  if (B) {
+    const rN = (o.r || 0) * wgt, rF = (o.rf !== undefined ? o.rf : (o.r || 0)) * wgt;
+    if (rN > 0.01 || rF > 0.01) {
+      const [a, e] = rgReach(P, B);
+      if (rN > 0.01) { P.na = rgLerp(P.na, a, rN); P.ne = rgLerp(P.ne, e, rN); }
+      if (rF > 0.01) { P.fa = rgLerp(P.fa, a, rF); P.fe = rgLerp(P.fe, e, rF); }
+    }
+  }
+}
+
+/* ---- moods and crowd ---- */
+
+function rgCheer(P, now, w, k) {
+  const ph = now / 130 + w.rgs, s1 = Math.sin(ph), s2 = Math.sin(ph + Math.PI);
+  rgBlend(P, { na: 158 + 14 * s1, ne: 30 + 28 * s1, fa: 156 + 14 * s2, fe: 30 + 28 * s2, lean: -3, head: -8 }, k);
+}
+function rgClap(P, now, w, k) {
+  const c = Math.sin(now / 95 + w.rgs);
+  rgBlend(P, { na: 62 + 4 * c, ne: 72 + 20 * c, fa: 60 + 4 * c, fe: 75 + 20 * c, lean: 2 }, k);
+}
+function rgSlump(P, k) {
+  rgBlend(P, { lean: 8, head: 16, na: -35, ne: 68, fa: -30, fe: 70 }, k);
+}
+
+/* ---- face ---- */
+
+function rgFaceState(w, now, vb, A, B, airborne) {
+  const role = w.vb;
+  const F = { mouth: "neutral", brow: 0, brA: 0, open: 1, arch: false, px: 0.5, py: 0, blush: 0.16, whistle: false, look: true };
+  if (role === "player") {
+    if (vb.phase === "point") { F.mouth = "press"; F.brow = -0.2; F.brA = 6; } else F.mouth = "smile";
+  } else if (role === "fan") F.mouth = "smile";
+  else F.mouth = "press";
+
+  if (A) {
+    const t = A.tau;
+    if (A.kind === "spike" || A.kind === "serve") {
+      if (t > -420 && t < -50) { F.mouth = "grit"; F.brow = -0.5; F.brA = 12; F.open = 0.8; F.blush = 0.3; }
+      else if (t >= -50 && t < 280) { F.mouth = "effort"; F.brow = -0.6; F.brA = 14; F.open = 0.55; F.blush = 0.38; }
+    } else if (A.kind === "bump") {
+      if (t > -320 && t < 260) { F.mouth = "grit"; F.brow = -0.3; F.brA = 10; F.open = 0.8; F.blush = 0.3; }
+    } else if (A.kind === "set") {
+      F.mouth = "press"; F.brow = 0.15; F.brA = 4;
+    } else if (A.kind === "dig") {
+      F.mouth = t > -150 ? "effort" : "grit"; F.brow = 0.9; F.open = 1.2; F.blush = 0.35;
+    }
+  } else if (w.mood === "sad") {
+    F.mouth = "frown"; F.brow = 0.4; F.brA = -14; F.open = 0.85; F.look = false; F.px = 0.2; F.py = 0.8;
+  } else if (w.mood === "happy" || w.celebrate) {
+    F.mouth = "grin"; F.brow = 0.55; F.brA = -3; F.blush = 0.42; F.arch = airborne || w.celebrate;
+  } else if (role === "fan" && now < vb.cheerUntil) {
+    F.mouth = Math.sin(now / 105 + w.rgs) > -0.15 ? "effort" : "grin";
+    F.brow = 0.5; F.blush = 0.4; F.arch = Math.sin(now / 240 + w.rgs) > 0.1;
+  }
+
+  if (role === "ref" && now < w.whisUntil) { F.mouth = "o"; F.whistle = true; F.brow = 0.3; }
+  else if (w.speaking && !A) F.mouth = Math.sin(now / 80 + w.rgs) > -0.1 ? "o" : "smile";
+
+  if (F.look && B && !F.arch) {
+    F.px = 0.4 + rgClamp((B.x - 52) / 34, -1, 1) * 0.55;
+    F.py = rgClamp((B.y - 28.8) / 28, -1, 1) * 0.75;
+  }
+  return F;
+}
+
+/* ---- apply to the SVG ---- */
+
+function rigRefs(w) {
+  if (w.rgR) return w.rgR;
+  const root = w.el.querySelector(".rig");
+  const q = s => root.querySelector(".rg-" + s);
+  const R = {
+    body: q("body"), lean: q("lean"), lF: q("lF"), lFs: q("lFs"), lFf: q("lFf"), lN: q("lN"), lNs: q("lNs"), lNf: q("lNf"),
+    aF: q("aF"), aFf: q("aFf"), aN: q("aN"), aNf: q("aNf"), head: q("head"), hb: q("hb"),
+    eye: q("eye"), pup: q("pup"), lid: q("lid"), arch: q("arch"), brow: q("brow"), bl: q("bl"),
+    sweat: q("sweat"), whistle: q("whistle"), sh: q("sh"), m: {}
+  };
+  for (const n of ["neutral", "press", "smile", "grin", "effort", "o", "frown", "grit"]) R.m[n] = q("m-" + n);
+  return (w.rgR = R);
+}
+
+function rgApply(w, P, F, jyU) {
+  const r = rigRefs(w);
+  const Hx = 45 + P.hx, Hy = 91 + P.hy;
+  r.body.setAttribute("transform", `translate(${rgF2(Hx)} ${rgF2(Hy)})`);
+  r.lean.setAttribute("transform", `rotate(${rgF2(P.lean)})`);
+
+  const leg = (g, s, f, fx, fl, pf) => {
+    const [th, k] = rgIK(fx - P.hx, 137 - fl - Hy, RG.T, RG.S, 1);
+    g.setAttribute("transform", `translate(${rgF2(Hx)} ${rgF2(Hy)}) rotate(${rgF2(-th)})`);
+    s.setAttribute("transform", `translate(0 ${RG.T}) rotate(${rgF2(k)})`);
+    f.setAttribute("transform", `translate(0 ${RG.S}) rotate(${rgF2(th - k + pf)})`);
+  };
+  leg(r.lF, r.lFs, r.lFf, P.fx, P.fl, P.fpf);
+  leg(r.lN, r.lNs, r.lNf, P.nx, P.nl, P.npf);
+
+  const arm = (g, f, a, e) => {
+    g.setAttribute("transform", `translate(45 52) rotate(${rgF2(-a)})`);
+    f.setAttribute("transform", `translate(0 ${RG.U}) rotate(${rgF2(-rgClamp(e, -3, 155))})`);
+  };
+  arm(r.aF, r.aFf, P.fa, P.fe);
+  arm(r.aN, r.aNf, P.na, P.ne);
+
+  r.head.setAttribute("transform", `rotate(${rgF2(P.head)} 45 44)`);
+  if (r.hb) r.hb.setAttribute("transform", `rotate(${rgF2(P.head * 0.5 + w.hairA)} 40 22)`);
+
+  const open = rgClamp(F.open, 0.06, 1.25);
+  r.eye.setAttribute("transform", `translate(52 28.8) scale(1 ${rgF2(open)})`);
+  r.pup.setAttribute("transform", `translate(${rgF2(F.px)} ${rgF2(F.py)})`);
+  r.lid.setAttribute("transform", `translate(0 ${rgF2((1 - Math.min(1, open)) * 1.5)})`);
+  r.brow.setAttribute("transform", `translate(0 ${rgF2(-F.brow * 1.1)}) rotate(${rgF2(F.brA)} 51.8 24.7)`);
+  r.bl.setAttribute("opacity", rgF2(F.blush));
+  r.sweat.setAttribute("opacity", rgF2(rgClamp((w.exert - 0.3) * 1.6, 0, 0.9)));
+
+  if (w.rgm !== F.mouth) {
+    for (const k in r.m) r.m[k].style.display = k === F.mouth ? "" : "none";
+    w.rgm = F.mouth;
+  }
+  const ar = F.arch ? 1 : 0;
+  if (w.rgA !== ar) {
+    r.arch.style.display = ar ? "" : "none";
+    r.eye.style.display = ar ? "none" : "";
+    r.lid.style.display = ar ? "none" : "";
+    w.rgA = ar;
+  }
+  const wh = F.whistle ? 1 : 0;
+  if (w.rgW !== wh) { r.whistle.style.display = wh ? "" : "none"; w.rgW = wh; }
+
+  const k = rgClamp(1 - jyU / 160, 0.45, 1);
+  r.sh.setAttribute("cy", rgF2(147 + jyU));
+  r.sh.setAttribute("rx", rgF2(22 * k));
+  r.sh.setAttribute("opacity", rgF2(0.35 + 0.65 * k));
+}
+
+/* ---- per-frame driver (called from stepVolley) ---- */
+
+function vbAnimate(w, dt, now, moving, sPre, A) {
+  const vb = state.volley, role = w.vb;
+  const jyU = w.jy / sPre;
+
+  // base pose: idle stance blended into the gait by speed
+  const ga = rgSmooth(w.gv / 26);
+  const P = rgBlend(rgIdle(w, now, vb), rgGait(w, dt, moving, sPre), ga);
+
+  // ball in this figure's own coordinates, so hands can be aimed at it
+  let B = null;
+  if (vb.ball && vb.g) {
+    const g = vb.g, b = vb.ball, bs = g.sc(b.l);
+    const footY = innerHeight * 0.52 + w.sl * innerHeight * 0.42;
+    B = {
+      x: 45 + (b.x - (w.x + 45)) * w.dir / sPre,
+      y: 150 - (footY - w.jy - (g.foot(b.l) - (b.z + 11) * bs)) / sPre,
+      r: Math.max(13, 23 * bs) / 2 / sPre
+    };
+  }
+
+  const airborne = rgJumpPose(w, P, now);
+
+  if (A) {
+    rgActPose(P, A, B);
+  } else if (role === "ref") {
+    if (now < w.armUntil) rgBlend(P, { na: 98, ne: 3, fa: 16, fe: 72, lean: 1 }, 1);
+  } else if (role === "fan" && now < vb.cheerUntil) {
+    (w.rgs > 3.14 ? rgCheer : rgClap)(P, now, w, 1);
+  } else if (w.celebrate) {
+    rgCheer(P, now, w, 1);
+  } else if (w.mood === "happy") {
+    rgCheer(P, now, w, 0.85);
+  } else if (w.mood === "sad") {
+    rgSlump(P, 1);
+  }
+
+  // follow the ball with the head while a point is being played
+  if (B && vb.phase === "point" && w.mood !== "sad") {
+    const elev = Math.atan2(28.8 - B.y, Math.max(20, B.x - 45)) / RAD;
+    P.head += rgClamp(-elev * 0.4, -24, 10);
+  }
+
+  // low-pass the pose so keyframes and gait blend smoothly
+  if (!w.rp) w.rp = Object.assign({}, P);
+  for (const k in P) w.rp[k] += (P[k] - w.rp[k]) * Math.min(1, dt * (k === "head" ? 10 : 22));
+
+  // face
+  const F = rgFaceState(w, now, vb, A, B, airborne);
+  if (!w.rf) w.rf = { brow: F.brow, brA: F.brA, open: F.open, px: F.px, py: F.py, blush: F.blush };
+  for (const k in w.rf) w.rf[k] += (F[k] - w.rf[k]) * Math.min(1, dt * 16);
+  if (now > w.nextBlink) { w.blinkT = now; w.nextBlink = now + rand(2200, 5600); }
+  const bt = now - w.blinkT;
+  const face = { mouth: F.mouth, arch: F.arch, whistle: F.whistle, brow: w.rf.brow, brA: w.rf.brA, px: w.rf.px, py: w.rf.py, blush: w.rf.blush, open: w.rf.open };
+  if (bt < 140) face.open *= 1 - Math.sin(Math.PI * bt / 140) * 0.92;
+
+  // sweat builds up with effort; girls' hair trails behind and swings
+  w.exert = rgClamp(w.exert + dt * (0.05 * w.gv / 150 + (airborne ? 0.3 : 0) - 0.012), 0, 1);
+  const hairTarget = rgClamp(0.07 * w.gv, 0, 24);
+  w.hairV += (-70 * (w.hairA - hairTarget) - 9 * w.hairV) * dt;
+  w.hairA += w.hairV * dt;
+
+  rgApply(w, w.rp, face, jyU);
+}
+
 /* =====================  VOLLEYBALL  ===================== */
 const VB_TEAMS = [
   { name: "Kırmızı", color: "#d62f2f" },
@@ -1641,7 +2130,7 @@ function vbLayout(vb) {
   vb.g = g;
 
   const yB = foot(g.lB), yF = foot(g.lF);
-  const hB = 190 * sc(g.lB), hF = 190 * sc(g.lF);
+  const hB = 172 * sc(g.lB), hF = 172 * sc(g.lF);
   const x0 = cx - W, x1 = cx + W;
   const line = (xa, xb, w, o) => `<line x1="${xa}" y1="${yB}" x2="${xb}" y2="${yF}" stroke="#fff" stroke-width="${w}" opacity="${o}"/>`;
 
@@ -1698,13 +2187,14 @@ function buildRally(vb, T0, winner) {
   const SLOW = CONFIG.VOLLEY_SLOW;
   const r0 = Math.random();
   const n = r0 < 0.3 ? 1 : r0 < 0.7 ? 2 : r0 < 0.9 ? 3 : 4;   // number of ball crossings
-  const R = { segs: [], moves: [], jumps: [], mi: 0, landT: 0, endT: 0, winner, scored: false, n, server: null, side: 0 };
+  const R = { segs: [], moves: [], jumps: [], acts: [], mi: 0, landT: 0, endT: 0, winner, scored: false, n, server: null, side: 0 };
   const plan = new Map();
   vb.teams.forEach((tm, t) => tm.forEach((w, i) => plan.set(w, vbHome(t, i))));
 
   const ms = x => T0 + x * 1000 * SLOW;
   const mv = (tt, w, p, dur) => { R.moves.push({ t: ms(tt), w, x: p.x, l: p.l, dur: dur * SLOW }); plan.set(w, p); };
-  const jump = (w, t0, t1) => R.jumps.push({ w, t0: ms(t0), t1: ms(t1), h: 38, on: false });
+  const jump = (w, t0, t1, kind, h) => R.jumps.push({ w, t0: ms(t0), t1: ms(t1), h, kind, on: false, pre: false });
+  const act = (w, tt, kind) => R.acts.push({ w, t: ms(tt), kind });
   const seg = (t0, t1, a, b, apex) => R.segs.push({ t0: ms(t0), t1: ms(t1), a, b, apex });
   const toward = tm => -vside(tm);
   const clampL = l => Math.min(0.88, Math.max(0.32, l));
@@ -1717,10 +2207,11 @@ function buildRally(vb, T0, winner) {
   mv(0, sv, spot, 0.45);
 
   let t = 0.5;
-  let cur = { team: S, p: { x: spot.x + toward(S) * 16, l: spot.l }, z: 195 };
-  seg(t, t + 0.35, { x: spot.x + toward(S) * 14, l: spot.l, z: 100 }, { x: cur.p.x, l: cur.p.l, z: cur.z }, 90);
+  let cur = { team: S, p: { x: spot.x + toward(S) * 16, l: spot.l }, z: 178 };
+  seg(t, t + 0.35, { x: spot.x + toward(S) * 20, l: spot.l, z: 64 }, { x: cur.p.x, l: cur.p.l, z: cur.z }, 90);
   t += 0.35;
-  jump(sv, t - 0.25, t + 0.12);
+  jump(sv, t - 0.25, t + 0.12, "serve", 52);
+  act(sv, t, "serve");
 
   for (let k = 1; k <= n; k++) {
     const X = cur.team, Y = 1 - X, sx = vside(X), sy = vside(Y);
@@ -1744,13 +2235,17 @@ function buildRally(vb, T0, winner) {
       mv(t, setter, setSpot, dur + 0.25);
       mv(t + 0.1, hitter, hitSpot, dur + 0.5);
       t += dur;
+      act(r, t, "bump");
 
-      seg(t, t + 0.35, { x: tgt.x, l: tgt.l, z: 60 }, { x: setSpot.x, l: setSpot.l, z: 150 }, 110);
+      const setX = setSpot.x + toward(Y) * 8;
+      seg(t, t + 0.35, { x: tgt.x, l: tgt.l, z: 60 }, { x: setX, l: setSpot.l, z: 128 }, 110);
       t += 0.35;
-      seg(t, t + 0.3, { x: setSpot.x, l: setSpot.l, z: 150 }, { x: hitSpot.x + toward(Y) * 16, l: hitSpot.l, z: 205 }, 70);
+      act(setter, t, "set");
+      seg(t, t + 0.3, { x: setX, l: setSpot.l, z: 128 }, { x: hitSpot.x + toward(Y) * 16, l: hitSpot.l, z: 190 }, 70);
       t += 0.3;
-      jump(hitter, t - 0.25, t + 0.12);
-      cur = { team: Y, p: { x: hitSpot.x + toward(Y) * 16, l: hitSpot.l }, z: 205 };
+      jump(hitter, t - 0.25, t + 0.12, "spike", 56);
+      act(hitter, t, "spike");
+      cur = { team: Y, p: { x: hitSpot.x + toward(Y) * 16, l: hitSpot.l }, z: 190 };
     } else if (X === winner) {
       // the winner's hit lands inside the loser's court
       const land = { x: g.cx + sy * g.W * rand(0.3, 0.92), l: rand(0.36, 0.82), z: 0 };
@@ -1766,6 +2261,7 @@ function buildRally(vb, T0, winner) {
       const bp = plan.get(best);
       mv(t, best, { x: bp.x + (land.x - bp.x) * 0.6, l: bp.l + (land.l - bp.l) * 0.6 }, dur);
       t += dur;
+      act(best, t, "dig");
       R.landT = ms(t);
       seg(t, t + 0.2, land, { x: land.x + sy * 40, l: land.l, z: 0 }, 30);
       t += 0.2;
@@ -1800,7 +2296,7 @@ function buildRally(vb, T0, winner) {
 function ballAt(vb, now) {
   const R = vb.R;
   const segs = R.segs;
-  if (now < segs[0].t0) return { x: R.server.px + 45 + R.side * 14, l: R.server.sl, z: 100 };
+  if (now < segs[0].t0) return { x: R.server.px + 45 + R.side * 20, l: R.server.sl, z: 64 };
   let s = segs[0];
   for (let i = segs.length - 1; i >= 0; i--) {
     if (now >= segs[i].t0) { s = segs[i]; break; }
@@ -1821,9 +2317,13 @@ function startPoint(vb, now) {
     w.vsp = 190;
     w.vface = -vside(t);
     w.jmp = null;
+    w.jpre = null;
+    w.acts = [];
+    w.mood = null;
   }));
   const cur = vb.plan.sets[vb.setIdx];
   vb.R = buildRally(vb, now + 300, cur.seq[vb.pointIdx++]);
+  for (const a of vb.R.acts) a.w.acts.push(a);
   vbScore();
 }
 
@@ -1841,7 +2341,9 @@ function scorePoint(vb, now) {
   wsay(ref, `${pick(VB_REF)} ${VB_TEAMS[win].name}`, 1700);
 
   vb.cheerUntil = now + 2000;
-  vb.teams[win].forEach(w => { w.jmp = { t0: now, t1: now + 450, h: 22 }; });
+  vb.teams[win].forEach(w => { w.jmp = { t0: now, t1: now + 450, h: 22, kind: "cheer" }; w.jpre = null; w.mood = "happy"; });
+  vb.teams[los].forEach(w => { w.mood = "sad"; });
+  ref.whisUntil = now + 650;
   vb.teams.forEach((tm, t) => tm.forEach((w, i) => { w.vt = vbHome(t, i); w.vsp = 150; w.vface = -vside(t); }));
   shuffle(vb.fans).slice(0, 2).forEach(f => wsay(f, pick(VB_CHEERS), 1400));
 
@@ -1871,11 +2373,16 @@ function afterPoint(vb, now) {
       vb.ref.dir = vside(sw) > 0 ? 1 : -1;
       vb.ref.vface = vb.ref.dir;
       vb.ref.armUntil = vb.until;
+      vb.ref.whisUntil = now + 900;
+      vb.teams[1 - sw].forEach(w => { w.mood = "sad"; });
       vbBanner(`🏆 Kazanan: ${VB_TEAMS[sw].name} Takım!`, `Set skoru ${vb.sets[0]} – ${vb.sets[1]}`, 7500);
       wsay(vb.ref, "Maç bitti!", 3000);
     } else {
       vb.phase = "break";
       vb.until = now + CONFIG.VOLLEY_BREAK_MS;
+      vb.ref.whisUntil = now + 900;
+      vb.teams[sw].forEach(w => { w.mood = "happy"; });
+      vb.teams[1 - sw].forEach(w => { w.mood = "sad"; });
       vbBanner(`Set ${vb.setNo}: ${VB_TEAMS[sw].name} Takım`, `${vb.score[0]} – ${vb.score[1]}  •  Set skoru ${vb.sets[0]} – ${vb.sets[1]}`, CONFIG.VOLLEY_BREAK_MS - 200);
     }
     return;
@@ -1976,6 +2483,7 @@ function startVolley(now) {
     lastSetWinner: 0,
     matchWinner: null,
     R: null,
+    ball: null,
     until: 0,
     cheerUntil: 0,
     bannerT: null,
@@ -1995,6 +2503,9 @@ function startVolley(now) {
     w.varr = false;
     w.jmp = null;
     w.celebrate = false;
+    w.mood = null;
+    w.acts = null;
+    w.exert = 0;
     w.el.classList.add("vsm");
     if (i % 2) w.el.classList.add("vsm2");
   });
@@ -2040,6 +2551,7 @@ function joinVolley(w) {
 
 function stepVolley(w, dt, now) {
   const sPre = state.base * (0.75 + 0.25 * w.sl);
+  if (!w.vbx) { w.vbx = true; w.el.classList.add("vbx"); }
   let moving = false;
   const t = w.vt;
 
@@ -2067,13 +2579,22 @@ function stepVolley(w, dt, now) {
   setStand(w, !moving);
 
   let jy = 0;
-  if (w.jmp && now >= w.jmp.t0 && now <= w.jmp.t1) {
-    jy = w.jmp.h * sPre * Math.sin(Math.PI * (now - w.jmp.t0) / (w.jmp.t1 - w.jmp.t0));
+  const J = w.jmp;
+  if (J && now >= J.t0 && now <= J.t1) {
+    // take-off is fast, the hit happens at the top, the descent is a little slower
+    jy = J.h * sPre * rgJumpCurve((now - J.t0) / (J.t1 - J.t0), (J.kind === "spike" || J.kind === "serve") ? 0.676 : 0.5);
   } else if (w.celebrate) {
     jy = 24 * sPre * Math.abs(Math.sin(now / 260 + w.cph));
+  } else if (w.vb === "fan" && now < state.volley.cheerUntil) {
+    jy = 7 * sPre * Math.abs(Math.sin(now / 230 + w.rgs)) * (w.rgs > 3.14 ? 1 : 0.35);
+  }
+  const A = rgFindAct(w, now);
+  if (A && A.kind === "set" && A.tau > -110 && A.tau < 220) {
+    jy += 9 * sPre * Math.sin(Math.PI * (A.tau + 110) / 330);   // setters hop slightly as they push the ball up
   }
   if (w.platform) jy += w.platform * sPre;
   w.jy = jy;
+  vbAnimate(w, dt, now, moving, sPre, A);
 }
 
 function updateVolley(now, dt) {
@@ -2102,6 +2623,10 @@ function updateVolley(now, dt) {
       m.w.vsp = Math.min(520, Math.max(70, d / Math.max(0.15, m.dur)));
     }
     for (const j of R.jumps) {
+      if (!j.pre && now >= j.t0 - 380) {
+        j.pre = true;
+        j.w.jpre = j;
+      }
       if (!j.on && now >= j.t0) {
         j.on = true;
         j.w.jmp = j;
@@ -2124,6 +2649,8 @@ function updateVolley(now, dt) {
       return;
     }
   }
+
+  vb.ball = vb.R ? ballAt(vb, now) : null;
 
   // the referee walks along the near side line, following the ball
   const rf = vb.ref;
@@ -2150,7 +2677,7 @@ function renderVolley(now) {
   const g = vb.g;
   const b = ballAt(vb, now);
   const s = g.sc(b.l);
-  const d = Math.max(16, 30 * s);
+  const d = Math.max(13, 23 * s);
   const fy = g.foot(b.l);
   const yc = fy - (b.z + 11) * s;
 
@@ -2192,7 +2719,15 @@ function endVolley(now) {
     w.speaking = false;
     clearTimeout(w.bt);
     w.el.querySelector(".bubble").classList.remove("show");
-    w.el.classList.remove("jer", "cheer", "armup", "standing", "vsm", "vsm2");
+    w.el.classList.remove("jer", "cheer", "armup", "standing", "vsm", "vsm2", "vbx");
+    w.vbx = false;
+    w.acts = null;
+    w.mood = null;
+    w.jpre = null;
+    w.rp = null;
+    w.rf = null;
+    w.gv = 0;
+    w.whisUntil = 0;
   }
 
   state.volley = null;
