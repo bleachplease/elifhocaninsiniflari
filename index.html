@@ -872,7 +872,7 @@ const EXCHANGES = [
   { q: "Hafta sonu müsait misin? Hadi buluşalım!", a: "Hayır, müsait değilim; başkasıyla buluş." },
   { q: "Şu an ne yapıyorsun?", a: "Şu an uslu durup konuşma sınavındaki arkadaşlarıma saygı gösteriyorum." },
   { q: "Kahvaltıda ne yedin?", a: "İki domates, bir yumurta" },
-  { q: "İngilizce çalışmama yardım eder misin?", a: "SIR YES SIR" },
+  { q: "İngilizce çalışmama yardım eder misin?", a: "Hangi konularda eksiğin var ki?" },
   { q: "Hadi yarın sinemaya gidelim, olur mu?", a: "Olur ama Marvel filmi izlemeyelim lütfen." },
   { q: "Ödevini yapmayı bitirdin mi?", a: "Hangi ödevi?" },
   { q: "Uzun zamandır senden haber almadım, nasılsın?", a: "Şimdi mi aklına geldim." },
@@ -889,9 +889,7 @@ const EXCHANGES = [
   { q: "Bugün ders çalışacak mısın?", a: "Yarın kesin başlıyorum, bugün dinlenme günüm." },
   { q: "Heyecanlandım, ne diyeceğimi unuttum", a: "Derin bir nefes al ve 'Actually, it depends' de, her kapıyı açar." },
   { q: "Bu kelime ne demek?", a: "Sözlük müyüm ben? Neyse, bu seferlik söyleyeyim..." },
-  { q: "Sence ben zeki miyim?", a: "Benimle konuştuğuna göre kesinlikle evet." }, 
-  { q: "Su ıslak mıdır?", a: "Ne?" }, 
-  { q: "İnternetim bitti internetini açar mısın?", a: "Benim de internetim yok" }
+  { q: "Sence ben zeki miyim?", a: "Benimle konuştuğuna göre kesinlikle evet." }
 ];
 
   let lastExchangeKey = null;
@@ -1862,7 +1860,6 @@ function startPhoto(now) {
   };
 
   const say1 = (t, text, ms) => ph.events.push({ t, fn: () => csay(cam, text, ms) });
-  ph.events.push({ t: 300, fn: () => phBanner("📸 Sınıf fotoğrafı!", "İki sıra olun, kameraya gülümseyin", 4200) });
   say1(1500, "Sınıf fotoğrafı zamanı!");
   say1(10000, "İki sıra olun bakalım!");
   say1(20000, "Uzun boylular arkaya, kısalar öne!");
