@@ -822,6 +822,53 @@
     position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; color: var(--ink);
     font: italic 700 clamp(15px, 2.2vw, 26px) "Trebuchet MS", Verdana, sans-serif;
   }
+
+  /* ---------- Bus trip + fair ---------- */
+  #curtain { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 70; transition: opacity 1.1s ease; }
+  #curtain.on { opacity: 1; }
+  #curtain b { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; opacity: 0; transition: opacity 0.6s; font: 700 clamp(24px, 4.5vw, 48px) "Trebuchet MS", Verdana, sans-serif; }
+  #curtain.txt b { opacity: 1; }
+  #dusk { position: fixed; inset: 0; pointer-events: none; z-index: 10; opacity: 0; transition: opacity 3s ease;
+    background: linear-gradient(rgba(110, 60, 150, 0.32), rgba(255, 140, 60, 0.26) 55%, rgba(60, 25, 60, 0.3)); }
+  body.dusk #dusk { opacity: 1; }
+  body.dusk #sky { background: linear-gradient(#3b3a7a 0%, #b8567e 38%, #f19a5a 74%, #ffd08a 100%); }
+  #scene.fairing > #sky, #scene.fairing > #hills, #scene.fairing > #grass, #scene.fairing > #birds,
+  #scene.fairing > #title, #scene.fairing > #path { display: none; }
+  .tbus, .tbl { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
+  .tbus.rolling { animation: busBob 0.3s ease-in-out infinite alternate; }
+  @keyframes busBob { from { margin-top: 0; } to { margin-top: -2px; } }
+  .tbus svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .tbus .tdoor { position: absolute; left: 17.2%; top: 22.4%; width: 10.6%; height: 58.2%; box-sizing: border-box; border: 2px solid #6b4700; border-radius: 3px;
+    background: linear-gradient(90deg, transparent 47%, #6b4700 47% 53%, transparent 53%), linear-gradient(#a9d3e6 0 58%, #f0b52a 58%); transform-origin: left; transition: transform 0.5s ease; }
+  .tbus.open .tdoor { transform: scaleX(0.06); }
+  .tbl .bubble { left: 10%; margin-bottom: 8px; }
+  .tbl .b2 { left: 66%; margin-bottom: 62px; }
+  .tbl .tcnt { display: none; position: absolute; left: 14%; bottom: 100%; margin-bottom: 2px; background: rgba(0,0,0,0.65); color: #fff; font: 700 13px sans-serif; padding: 1px 9px; border-radius: 10px; }
+  .walker.tnoname .name { display: none; }
+  .walker.tsmall .name { font-size: 10px; padding: 0 6px; top: -12px; }
+  .walker .phone { display: none; position: absolute; left: 73px; top: 0; width: 11px; height: 18px; border-radius: 2px; background: #111; border: 1.5px solid #8fc3ea; }
+  .walker.selfie .phone { display: block; }
+  .walker.selfie .far { transform: rotate(-152deg); }
+  .tfbg { position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background: linear-gradient(#4a3f93 0%, #e8847a 22%, #ffc27a 36%, #7ea55c 36.01%, #6b954f 52%, #c9b08a 52.01%, #b79d74 100%); }
+  .tfbg .stall { position: absolute; top: 47%; width: 9%; height: 7%; background: linear-gradient(var(--c) 0 35%, #f4ead6 35%); border-radius: 4px 4px 0 0; box-shadow: 0 3px 0 rgba(0,0,0,0.25); }
+  .tfbg .bulb { position: absolute; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 8px 2px rgba(255, 240, 170, 0.8); }
+  .tfx { position: absolute; pointer-events: none; }
+  .gcab { position: absolute; pointer-events: none; }
+  .gcab .gh { position: absolute; left: 50%; top: 0; width: 3px; height: 21%; margin-left: -1.5px; background: linear-gradient(90deg, #8a8f9a, #4a4f5a); }
+  .gcab .groof { position: absolute; left: -2%; right: -2%; top: 19%; height: 18%; border-radius: 50% 50% 0 0 / 100% 100% 0 0; background: linear-gradient(rgba(255,255,255,0.35), rgba(0,0,0,0) 60%), var(--c); border: 2px solid rgba(0,0,0,0.4); box-sizing: border-box; }
+  .gcab .groof::after { content: ""; position: absolute; left: 50%; top: -9%; width: 10%; height: 14%; margin-left: -5%; border-radius: 50%; background: #ffe27a; box-shadow: 0 0 6px 2px rgba(255, 230, 120, 0.8); }
+  .gcab .gbody { position: absolute; left: 6%; right: 6%; top: 37%; bottom: 0; border-radius: 3px 3px 12px 12px; box-sizing: border-box; border: 2px solid rgba(0,0,0,0.4);
+    background: linear-gradient(90deg, transparent 0 8%, rgba(190, 225, 245, 0.55) 8% 46%, transparent 46% 54%, rgba(190, 225, 245, 0.55) 54% 92%, transparent 92%) 0 0 / 100% 58% no-repeat, var(--cd); }
+  .gcab.gfront { border-radius: 2px 2px 12px 12px; background: linear-gradient(rgba(255,255,255,0.28), rgba(0,0,0,0.12)), var(--c); border: 2px solid rgba(0,0,0,0.4); box-sizing: border-box; box-shadow: inset 0 5px 0 rgba(255,255,255,0.3), inset 0 -5px 0 rgba(0,0,0,0.18); }
+  .gcab.gfront::before { content: ""; position: absolute; left: 4%; right: 4%; top: -34%; height: 34%; border-top: 3px solid #cfd4de; background: repeating-linear-gradient(90deg, #cfd4de 0 2px, transparent 2px 9px) 0 0 / 100% 100% no-repeat; opacity: 0.0; }
+  .wgnd { background: linear-gradient(#7a7f8a, #50545e); border-radius: 4px; }
+  .cplat { border-radius: 50%; background: radial-gradient(ellipse at 50% 45%, #f2d9a4 0%, #c99a62 42%, #7a4c2c 100%); border: 5px solid #ffd86b; box-sizing: border-box; outline: 2px solid rgba(90, 50, 20, 0.6); }
+  .cdrum { background: linear-gradient(90deg, rgba(0,0,0,0.35), rgba(255,255,255,0.22) 30%, rgba(0,0,0,0.0) 55%, rgba(0,0,0,0.38)),
+      repeating-linear-gradient(90deg, #f1e3b5 0 7%, #c0392b 7% 14%), #8d1b27; border-radius: 4px 4px 2px 2px; border-top: 5px solid #ffd86b; border-bottom: 5px solid #b88a3a; box-sizing: border-box; }
+  .cpolel { background: repeating-linear-gradient(160deg, #fff0b0 0 3px, #b9892f 3px 6px); border-radius: 2px; box-shadow: 0 0 0 0.5px rgba(80,50,10,0.5); }
+  .chorse { position: absolute; left: 0; top: 0; pointer-events: none; }
+  .chorse svg { width: 100%; height: 100%; display: block; }
 </style>
 </head>
 <body>
@@ -866,6 +913,8 @@
 <div id="vbanner" aria-live="polite"><b></b><small></small></div>
 <div id="pdim"></div>
 <div id="flash"></div>
+<div id="dusk"></div>
+<div id="curtain"><b></b></div>
 <div id="photo" aria-hidden="true"><div class="pframe"><div class="pwin"></div><div class="pcap"></div></div></div>
 
 <div id="panel">
@@ -990,7 +1039,9 @@ const CONFIG = {
   TUG_MAX_MS: 36000,
   TUG_END_MS: 7000,         // celebration after the flag crosses the line
   PHOTO_AT: 480000,         // class photo: once, at minute 8 after a class is opened
-  PHOTO_FOR: 90000          // ...and the scene is over at 9:30
+  PHOTO_FOR: 90000,         // ...and the scene is over at 9:30
+  TRIP_ROAM: 9000,          // after the macuncu scene students roam 9 s, then the bus arrives
+  FAIR_FOR: 300000          // the fair scene lasts exactly 5 minutes
 };
 
 const GIRL_NAMES = new Set([
@@ -1026,6 +1077,8 @@ const state = {
   nextPhoto: Infinity,
   tug: null,
   nextTug: Infinity,
+  trip: null,
+  nextTrip: Infinity,
   base: 1,
   ellipse: null,
   lastFrame: performance.now()
@@ -1255,7 +1308,8 @@ function addStudent(name, index = walkers.length) {
   el.classList.add("pz" + w.pz);
   el.style.setProperty("--sd", (-rand(0, 2.3)).toFixed(2) + "s");
   w.ph = null; w.phAt = false; w.phX = 0; w.phL = 0.6; w.phSp = 0; w.phRel = 0;
-  if (state.tug) joinTug(w);
+  if (state.trip) joinTrip(w);
+  else if (state.tug) joinTug(w);
   else if (state.simit) joinSimit(w);
   else if (state.volley) joinVolley(w);
   else if (state.photo) joinPhoto(w);
@@ -1582,6 +1636,7 @@ function vsay(v, text, ms = 3200) {
 }
 
 function pickSaying(w) {
+  if (state.trip) return pick(state.trip.ft ? FAIR_SAYS : BUS_SAYS);
   if (state.tug) return pick(TUG_CHEERS);
   if (state.photo) return pick(PHOTO_SAYS);
   if (state.volley) return pick(VB_CHEERS);
@@ -1910,6 +1965,8 @@ function endSimit(now) {
 
   // a halay that was due during the scene starts shortly after it
   state.nextHalay = Math.max(state.nextHalay, now + CONFIG.SIMIT_HALAY_DELAY);
+  // after the macuncu: 9 s of plain roaming (no halay, dance, simitçi or photo), then the bus
+  if (sm.kind === "macun") { state.nextTrip = now + CONFIG.TRIP_ROAM; state.nextHalay = Infinity; }
 }
 
 function renderVendor(now) {
@@ -2015,7 +2072,7 @@ function camScale() {
 
 function checkPhoto(now) {
   if (!menu.classList.contains("gone")) return;
-  if (!state.photo && !state.simit && !state.volley && !state.tug && now >= state.nextPhoto) startPhoto(now);
+  if (!state.photo && !state.simit && !state.volley && !state.tug && !state.trip && now >= state.nextPhoto) startPhoto(now);
 }
 
 function startPhoto(now) {
@@ -3797,11 +3854,519 @@ function endTug(now) {
 }
 /* =====================  /TUG OF WAR  ===================== */
 
+/* =====================  BUS TRIP + FAIR  ===================== */
+// After the macuncu scene: 9 s of normal roaming, a bus arrives, the class queues up (names shown) and boards one by
+// one, the driver counts them, the screen goes black and cuts to a fair (5 minutes): Ferris wheel (8 gondolas of 2-4),
+// carousel (6-8 riders), the rest queue and take selfies (phone up + the existing flash). Black screen again, then
+// the countryside comes back at dusk.
+const BUS_SAYS = ["Camın kenarı benim!", "İtmeyin lütfen!", "Lunaparka gidiyoruz!", "Ben öne oturacağım!", "Hocam bizi unutmaz değil mi?", "Pamuk şeker yiyeceğim!"];
+const FAIR_SAYS = ["Dönme dolap çok yüksek!", "Pamuk şeker alalım!", "Atlıkarınca sırası uzun!", "Ben bir daha bineceğim!", "Sıra bende mi?", "Eller havaya!"];
+const SELFIE_AFTER = ["Çok güzel çıktık!", "Ben gözümü kapatmışım :(", "Bunu paylaşıyorum!", "Bir tane daha çekelim!"];
+const GOND_COLORS = ["#e4572e", "#17bebb", "#ffc914", "#76b041", "#a45ee5", "#4d9de0", "#ff8fa3", "#f58a1f"];
+const NG = 8;   // gondolas on the Ferris wheel
+const TAU = Math.PI * 2;
+const curtainEl = document.getElementById("curtain");
+const tY = L => innerHeight * 0.52 + L * innerHeight * 0.42;
+const tL = y => (y - innerHeight * 0.52) / (innerHeight * 0.42);
+const tPos = (w, cx, y) => { w.x = cx - 45; w.sl = tL(y); };
+const tEl = (cls, html) => { const e = document.createElement("div"); e.className = cls; if (html) e.innerHTML = html; scene.appendChild(e); return e; };
+
+function tWalk(w, dt, cx, y, sp) {
+  const px = w.x + 45, py = tY(w.sl), dx = cx - px, dy = y - py, d = Math.hypot(dx, dy), st = sp * dt;
+  if (d <= Math.max(st, 1.5)) { tPos(w, cx, y); setStand(w, true); return true; }
+  tPos(w, px + dx / d * st, py + dy / d * st);
+  if (Math.abs(dx) > 1) w.dir = dx > 0 ? 1 : -1;
+  setStand(w, false);
+  return false;
+}
+// ease the sprite back to its normal lane size after a ride
+function tNorm(w, dt) {
+  if (w.tsc == null) return;
+  const sn = state.base * (0.75 + 0.25 * w.sl);
+  w.tsc += (sn - w.tsc) * (1 - Math.exp(-6 * dt));
+  if (Math.abs(sn - w.tsc) < 0.01) w.tsc = null;
+}
+function curtainOn(txt) { curtainEl.querySelector("b").textContent = txt || ""; curtainEl.classList.toggle("txt", !!txt); curtainEl.classList.add("on"); }
+function curtainOff() { curtainEl.classList.remove("on", "txt"); }
+
+/* ---------- bus ---------- */
+function makeTripBus() {
+  const win = [0, 1, 2, 3, 4].map(i => {
+    const x = 112 + i * 46;
+    return `<rect x="${x}" y="24" width="38" height="36" rx="5" fill="url(#tgl)" stroke="#5a3d06" stroke-width="2.2"/>` +
+      `<path d="M${x + 4} 26 L${x + 18} 26 L${x + 8} 58 L${x + 4} 58Z" fill="#fff" opacity=".24"/>` +
+      `<rect x="${x + 6}" y="44" width="10" height="16" rx="3" fill="#3b3350" opacity=".55"/><rect x="${x + 22}" y="44" width="10" height="16" rx="3" fill="#3b3350" opacity=".55"/>` +
+      `<rect x="${x}" y="40" width="38" height="2" fill="#5a3d06" opacity=".7"/>`;
+  }).join("");
+  const wheel = cx => `<path d="M${cx - 25} 114 A25 25 0 0 1 ${cx + 25} 114Z" fill="#17120b"/>` +
+    `<circle cx="${cx}" cy="113" r="19" fill="#1a1a1a"/><circle cx="${cx}" cy="113" r="19" fill="none" stroke="#2e2e2e" stroke-width="2.5"/>` +
+    `<circle cx="${cx}" cy="113" r="11.5" fill="url(#trm)" stroke="#6d737d" stroke-width="1.2"/><circle cx="${cx}" cy="113" r="6.5" fill="none" stroke="#7a808a" stroke-width="1"/><circle cx="${cx}" cy="113" r="3" fill="#4a4f58"/>` +
+    [0, 1, 2, 3, 4].map(i => `<circle cx="${(cx + 8.5 * Math.cos(i * 1.2566)).toFixed(1)}" cy="${(113 + 8.5 * Math.sin(i * 1.2566)).toFixed(1)}" r="1.2" fill="#444"/>`).join("");
+  const svgTxt = `<svg viewBox="0 0 360 134" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="tbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbd965"/><stop offset=".45" stop-color="#f3b92f"/><stop offset="1" stop-color="#cf8f14"/></linearGradient>
+    <linearGradient id="tgl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9f0fb"/><stop offset="1" stop-color="#7fb3cc"/></linearGradient>
+    <linearGradient id="tws" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e3f5ff"/><stop offset="1" stop-color="#8dbdd4"/></linearGradient>
+    <radialGradient id="trm"><stop offset="0" stop-color="#f0f2f5"/><stop offset="1" stop-color="#8f96a1"/></radialGradient>
+    <radialGradient id="thl"><stop offset="0" stop-color="#fffbe0"/><stop offset=".6" stop-color="#ffe98a"/><stop offset="1" stop-color="#d9b13a"/></radialGradient></defs>
+    <ellipse cx="180" cy="131" rx="174" ry="3.6" fill="#000" opacity=".3"/>
+    <!-- roof hatches + AC unit + destination sign -->
+    <rect x="124" y="6" width="84" height="9" rx="3" fill="#e6e9ee" stroke="#5a3d06" stroke-width="1.6"/><path d="M132 8 H200 M132 11 H200" stroke="#b6bcc6" stroke-width="1"/>
+    <rect x="224" y="8" width="52" height="7" rx="3" fill="#cfd3d8" stroke="#5a3d06" stroke-width="1.4"/><rect x="292" y="9" width="30" height="6" rx="2" fill="#d8dce2" stroke="#5a3d06" stroke-width="1.2"/>
+    <rect x="352" y="28" width="5" height="62" rx="2" fill="#2f2f2f" opacity="0"/>
+    <!-- body -->
+    <path d="M8 46 Q8 14 34 12 L334 12 Q352 12 352 28 L352 110 L8 110 Z" fill="url(#tbg)" stroke="#5a3d06" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M12 16 Q30 14 60 14 L330 14" stroke="#fff" stroke-width="2" opacity=".35" fill="none" stroke-linecap="round"/>
+    <rect x="10" y="84" width="341" height="12" fill="#2f6fb5"/><rect x="10" y="98" width="341" height="2.5" fill="#fff"/><rect x="8" y="103" width="344" height="8" fill="#a8761a"/>
+    <path d="M10 86 H351" stroke="#fff" stroke-width="1" opacity=".35"/>
+    <text x="150" y="93.5" font-size="9" font-weight="700" fill="#fff" font-family="Trebuchet MS,Verdana,sans-serif" letter-spacing="1">LUNAPARK TURU</text>
+    <!-- panel seams -->
+    <path d="M104 14 V108 M326 14 V108 M62 14 V108" stroke="#7a5208" stroke-width="1" opacity=".45"/>
+    <!-- bumpers, lights -->
+    <rect x="1" y="100" width="18" height="12" rx="4" fill="#3a3a3a"/><rect x="342" y="100" width="17" height="12" rx="4" fill="#3a3a3a"/>
+    <rect x="3" y="82" width="12" height="13" rx="4" fill="url(#thl)" stroke="#5a3d06" stroke-width="1.4"/>
+    <rect x="344" y="82" width="7" height="14" rx="2" fill="#d62f2f" stroke="#5a1010" stroke-width="1"/><rect x="344" y="66" width="7" height="6" rx="2" fill="#ff9d2e" stroke="#5a3d06" stroke-width=".8"/>
+    <rect x="352" y="94" width="5" height="3" fill="#777"/><rect x="354" y="100" width="3" height="9" fill="#555"/>
+    <!-- cab: big windscreen + driver -->
+    <path d="M13 46 Q13 20 34 20 L58 20 L58 72 L13 72Z" fill="url(#tws)" stroke="#5a3d06" stroke-width="2.6"/>
+    <g id="tdriver">
+      <path d="M34 72 L34 58 Q34 52 40 52 L54 52 L54 72Z" fill="#3a3340"/>
+      <path d="M36 74 L36 54 Q36 48 42 48 L50 48 L50 74Z" fill="#2b4a6b"/>
+      <path d="M40 50 L45 62 L50 50Z" fill="#fff" opacity=".9"/><path d="M44.5 52 L46 62 L43.8 62Z" fill="#b03030"/>
+      <rect x="39" y="41" width="8" height="9" rx="3" fill="#d8b087"/>
+      <ellipse cx="42" cy="34" rx="9" ry="9.6" fill="#e7c39a"/><ellipse cx="50.4" cy="35" rx="2" ry="3.2" fill="#d6a97f"/>
+      <path d="M32.5 33 L29.2 36.2 L33.2 37.4Z" fill="#dba883"/>
+      <path d="M32 31 Q33 22 42 22 Q51 22 52 31 L50 31 Q47 26 42 26 Q37 26 34 31Z" fill="#1f2d3d"/><path d="M33 31 L27 33.4 L34 33.6Z" fill="#1f2d3d"/>
+      <path d="M35.5 29.6 Q38 28.2 40.5 29.4" stroke="#2a1d14" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+      <circle cx="37.6" cy="32.2" r="1.35" fill="#1b1b1b"/><circle cx="38" cy="31.8" r=".4" fill="#fff"/>
+      <path d="M34.5 36.8 Q38 35.4 41.5 36.8" stroke="#3a2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M35.8 39.4 Q39 41.4 42.4 39.4" stroke="#7b2b2b" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+      <path d="M44 49 L33 56" stroke="#2b4a6b" stroke-width="6.5" stroke-linecap="round"/><circle cx="31.4" cy="57" r="3" fill="#e7c39a"/>
+      <ellipse cx="25.5" cy="58.5" rx="3.4" ry="10.5" fill="none" stroke="#1b1b1b" stroke-width="2.6" transform="rotate(-24 25.5 58.5)"/>
+      <path d="M28 66 L34 60" stroke="#2a2a2a" stroke-width="2.4"/>
+    </g>
+    <rect x="13" y="66" width="45" height="6" fill="#262626"/><path d="M18 22 L38 22 L22 70 L14 70Z" fill="#fff" opacity=".2"/>
+    <path d="M12 44 L2 41 L2 56 L12 54Z" fill="#2e2e2e"/><path d="M5 43 L5 55" stroke="#9aa1ab" stroke-width="1.4"/>
+    <!-- door (the .tdoor overlay animates over this) -->
+    <rect x="62" y="30" width="38" height="78" fill="#2a2230"/><rect x="64" y="34" width="3" height="68" fill="#ffd400"/>
+    <rect x="72" y="58" width="16" height="34" rx="3" fill="#3b3350"/><rect x="66" y="94" width="30" height="3" fill="#8a8f98"/><rect x="62" y="104" width="38" height="4" fill="#666"/>
+    ${win}
+    <rect x="316" y="99" width="26" height="9" rx="1.5" fill="#fff" stroke="#333" stroke-width=".8"/><text x="329" y="106" font-size="5.6" text-anchor="middle" fill="#222" font-family="monospace">34 LP 01</text>
+    <!-- wheels -->
+    ${wheel(124)}${wheel(290)}
+    <path d="M100 116 q-6 6 -6 12 l9 0 q0 -6 1 -12Z" fill="#222" opacity=".0"/></svg>`;
+  const el = tEl("tbus", svgTxt + '<div class="tdoor"></div>');
+  const lay = tEl("tbl", '<div class="bubble"></div><div class="bubble b2"></div><div class="tcnt"></div>');
+  return { el, lay, x: innerWidth + 40, bub: lay.querySelector(".bubble"), b2: lay.querySelector(".b2"), cnt: lay.querySelector(".tcnt"), talk: 0, bt: null, bt2: null };
+}
+
+function tSay(text, ms = 2600, second) {
+  const b = state.trip && state.trip.bus; if (!b) return;
+  const el = second ? b.b2 : b.bub, k = second ? "bt2" : "bt";
+  el.textContent = text; el.classList.add("show"); b.talk++;
+  clearTimeout(b[k]);
+  b[k] = setTimeout(() => { el.classList.remove("show"); b.talk = Math.max(0, b.talk - 1); }, ms);
+}
+function busDims() { const bs = Math.min(1.6 * state.base, innerWidth * 0.42 / 360); return { bs, W: 360 * bs, H: 134 * bs }; }
+
+function checkTrip(now) {
+  if (!menu.classList.contains("gone") || state.trip || now < state.nextTrip) return;
+  startTrip(now);
+}
+function startTrip(now) {
+  state.nextTrip = Infinity;
+  if (!walkers.length) { state.nextTrip = now + 5000; return; }
+  state.halay = false; state.halayEnd = now; state.nextHalay = Infinity;
+  for (const w of walkers) {
+    w.dance = null; w.el.classList.remove("dancing");
+    w.sready = false; w.wp = null; w.wait = 0; w.tp = { m: "wait" }; w.tsc = null; w.tview = null; w.tz = null;
+  }
+  state.trip = { phase: "in", bus: makeTripBus(), queue: [], total: walkers.length, boarded: 0, nextBoard: 0, seq: [], names: [], at: 0, ft: null };
+  tSay("Geldik çocuklar!", 2200);
+}
+
+function updateTrip(now, dt) {
+  const tr = state.trip; if (!tr) return;
+  const b = tr.bus, { bs, W, H } = busDims();
+  tr.bs = bs; tr.W = W; tr.H = H;
+  tr.doorX = b.x + W * 81 / 360;
+  if (!walkers.length && tr.phase !== "dark") { finishTrip(now); return; }
+
+  if (tr.phase === "in") {
+    b.el.classList.add("rolling");
+    const stop = innerWidth - W - 24;
+    b.x = Math.max(stop, b.x - 260 * bs * dt);
+    if (b.x <= stop) {
+      b.el.classList.remove("rolling"); b.el.classList.add("open");
+      tr.phase = "board"; tr.nextBoard = now + 900;
+      tr.doorX = b.x + W * 81 / 360;
+      tr.queue = walkers.slice().sort((p, q) => Math.abs(p.x + 45 - tr.doorX) - Math.abs(q.x + 45 - tr.doorX));
+      tr.queue.forEach(w => { w.tp = { m: "q" }; w.wp = null; });
+      tSay("Hadi çocuklar, sırayla binin!", 3000);
+    }
+  } else if (tr.phase === "board") {
+    tr.queue = tr.queue.filter(w => walkers.includes(w) && w.tp && w.tp.m === "q");
+    const head = tr.queue[0];
+    if (head && head.atSlot && now >= tr.nextBoard) {
+      head.tp = { m: "step", t0: now, s0: head.ss || 0.5 };
+      tr.queue.shift(); tr.nextBoard = now + 380;
+    }
+    tr.cntTxt = `Binen: ${tr.boarded}/${tr.total}`;
+    if (!tr.queue.length && walkers.every(w => w.tp && w.tp.m === "in")) {
+      tr.phase = "count";
+      let t = now; const S = (d, fn) => { t += d; tr.seq.push({ at: t, fn }); };
+      const N = tr.boarded;
+      S(400, () => tSay("Herkes bindi mi?", 2400));
+      S(2800, () => tSay("Bir sayayım bakalım...", 1500));
+      S(1900, () => {});
+      for (let i = 1; i <= N; i++) S(i === 1 ? 0 : 110, () => tSay(String(i), 500));
+      S(900, () => tSay("Bir eksik var!", 2200));
+      S(2300, () => tSay((tr.names.length ? pick(tr.names) : "Biri") + ": Şoför abi, kendini saymadın!", 2800, true));
+      S(3000, () => tSay("Ay, doğru ya! Tamam, herkes tam.", 2400));
+      S(2800, () => { b.el.classList.remove("open"); tSay("Kapılar kapanıyor, bip bip!", 2200); });
+      S(1500, () => { tr.phase = "leave"; tr.at = performance.now(); tr.dark = false; });
+    }
+  } else if (tr.phase === "leave") {
+    b.el.classList.add("rolling");
+    b.x -= 300 * bs * dt;
+    if (!tr.dark && now - tr.at > 1300) { tr.dark = true; tr.at2 = now; curtainOn(""); }
+    if (tr.dark && now - tr.at2 > 1200) { tr.phase = "dark"; tr.at = now; curtainOn("Lunapark 🎡"); }
+  } else if (tr.phase === "dark") {
+    if (now - tr.at > 1800) startFair(now);
+  } else if (tr.phase === "fair") {
+    updateFair(now, dt);
+    if (now - tr.fairT0 >= CONFIG.FAIR_FOR) { tr.phase = "out"; tr.at = now; curtainOn(""); }
+  } else if (tr.phase === "out") {
+    updateFair(now, dt);
+    if (now - tr.at > 1200) { endFair(now); tr.phase = "back"; tr.at = now; curtainOff(); }
+  } else if (tr.phase === "back") {
+    if (now - tr.at > 1300) finishTrip(now);
+  }
+  while (tr.seq.length && now >= tr.seq[0].at) tr.seq.shift().fn();
+}
+
+function stepTrip(w, dt, now) {
+  const tr = state.trip, p = w.tp, base = state.base, sp = 140 * base * (0.75 + 0.25 * w.sl);
+  w.tview = null;
+  const busZ = Math.round(tY(0.4)) - 5;
+  if (!tr.ft) w.tz = null;
+  if (p.m === "wait") {
+    if (!p.wp) p.wp = { x: rand(40, Math.max(60, innerWidth - 120)), y: tY(rand(0.4, 1)) };
+    if (tWalk(w, dt, p.wp.x, p.wp.y, sp * 0.6)) p.wp = null;
+  } else if (p.m === "q") {
+    const rank = Math.max(0, tr.queue.indexOf(w));
+    const avail = Math.max(80, tr.doorX - 24), sps = Math.max(28, 38 * base);
+    const cols = Math.max(1, Math.floor(avail / sps)), rows = Math.max(1, Math.ceil(tr.total / cols));
+    const col = Math.floor(rank / rows), row = rank % rows;
+    const a = tWalk(w, dt, tr.doorX - col * sps, tY(0.47 + row * Math.min(0.14, 0.5 / rows)), sp * 1.5);
+    w.atSlot = a && rank === 0;
+    w.tz = Math.max(Math.round(tY(w.sl)), busZ + 3);   // always in front of the bus
+    if (a) w.tview = "front";
+  } else if (p.m === "step") {
+    const k = Math.min(1, (now - p.t0) / 320);
+    tPos(w, tr.doorX, tY(0.45) - 10 * k * tr.bs);
+    w.tz = busZ + 40;   // the student stays in front of the bus until hidden inside
+    w.tsc = Math.max(0.02, p.s0 * (1 - k));
+    w.el.classList.toggle("tnoname", k > 0.5);
+    setStand(w, false);
+    if (k >= 1) { w.el.style.display = "none"; p.m = "in"; tr.boarded++; tr.names.push(w.name); }
+  } else if (p.m === "in") {
+    // aboard the bus: hidden
+  } else if (tr.ft) {
+    stepFairWalker(w, dt, now);
+  }
+}
+
+function joinTrip(w) {
+  const tr = state.trip;
+  if (tr.ft) { const key = chooseQ(tr.ft); w.tp = { m: "cq", q: key }; w.el.classList.add("tsmall"); w.el.querySelector(".flipper").insertAdjacentHTML("beforeend", '<i class="phone"></i>'); qArr(tr.ft, key).push(w); }
+  else if (tr.phase === "in" || tr.phase === "board") {
+    w.tp = { m: tr.phase === "board" ? "q" : "wait" };
+    if (tr.phase === "board") { tr.queue.push(w); tr.total++; }
+  } else w.tp = null;
+}
+
+/* ---------- fair ---------- */
+const HORSE_COLORS = ["#f4efe6", "#8b5a33", "#2d2420", "#c98f56", "#d9d2c3"];
+function horseSvg(c) {
+  const mane = shade(c, -0.5), dk = shade(c, -0.22), sad = pick(["#d62f2f", "#2f6fb5", "#2f9e44", "#7a2fa5"]);
+  return `<svg viewBox="0 0 70 58" xmlns="http://www.w3.org/2000/svg">
+    <path d="M13 22 Q3 24 4 38 Q6 46 9 50" stroke="${mane}" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M13 23 Q6 28 7 40" stroke="${shade(mane, 0.2)}" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M20 33 L17 44 L21 52 M27 34 L30 44 L26 51" stroke="${dk}" stroke-width="4.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M44 34 L52 38 L56 47 M49 32 L60 34 L63 41" stroke="${dk}" stroke-width="4.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M21 52 l-0.5 3 M26 51 l-0.5 3 M56 47 l1 3 M63 41 l1.5 2.5" stroke="#3a2a1a" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M12 27 Q14 18 26 18 L42 19 Q52 20 52 30 Q50 38 38 38 L22 37 Q12 36 12 27Z" fill="${c}"/>
+    <path d="M44 23 Q50 12 54 6 L63 8 Q66 12 68 17 Q69 22 64 23 L60 20 Q58 27 54 34 Q50 30 44 29Z" fill="${c}"/>
+    <path d="M54 7 L53 1.5 L58.5 5.5Z" fill="${c}"/><path d="M53 7 Q45 12 46 25" stroke="${mane}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <circle cx="60.5" cy="11.5" r="1.5" fill="#1b1b1b"/><circle cx="60.9" cy="11" r=".5" fill="#fff"/><circle cx="66.6" cy="19" r="1" fill="${dk}"/>
+    <path d="M58 16 L67 16 M57.5 12 Q57 14 58 16" stroke="#ffd86b" stroke-width="1.3" fill="none"/>
+    <path d="M57 16 Q50 24 40 22" stroke="#ffd86b" stroke-width=".9" fill="none"/>
+    <path d="M22 25 Q34 31 46 25 L46 31 Q34 36 22 31Z" fill="${shade(c, 0.12)}" opacity=".5"/>
+    <rect x="24" y="17" width="16" height="8" rx="3" fill="${sad}" stroke="#ffd86b" stroke-width="1.1"/><path d="M26 26 Q32 30 40 26" stroke="#ffd86b" stroke-width="1.4" fill="none"/>
+    <path d="M24 33 Q34 36 44 33" stroke="#ffd86b" stroke-width="1.6" fill="none"/></svg>`;
+}
+function wheelSvg() {
+  let lat = "", spk = "", lights = "", piv = "", cross = "";
+  for (let i = 0; i < 48; i++) { const a = i * TAU / 48, r = i % 2 ? 95 : 82; lat += `${(r * Math.cos(a)).toFixed(1)},${(r * Math.sin(a)).toFixed(1)} `; }
+  for (let i = 0; i < 16; i++) { const a = i * TAU / 16; spk += `<line x1="0" y1="0" x2="${(88 * Math.cos(a)).toFixed(1)}" y2="${(88 * Math.sin(a)).toFixed(1)}" stroke="#c4c9d3" stroke-width="1.6"/>`; }
+  for (let i = 0; i < 16; i++) { const a = i * TAU / 16, b = (i + 1) * TAU / 16; cross += `<line x1="${(46 * Math.cos(a)).toFixed(1)}" y1="${(46 * Math.sin(a)).toFixed(1)}" x2="${(88 * Math.cos(b)).toFixed(1)}" y2="${(88 * Math.sin(b)).toFixed(1)}" stroke="#a3aab7" stroke-width=".7"/>`; }
+  for (let i = 0; i < 40; i++) lights += `<circle cx="${(98 * Math.cos(i * TAU / 40)).toFixed(1)}" cy="${(98 * Math.sin(i * TAU / 40)).toFixed(1)}" r="1.9" fill="${i % 2 ? '#ffe27a' : '#fff6c9'}"/>`;
+  for (let i = 0; i < NG; i++) piv += `<circle cx="${(95 * Math.cos(i * TAU / NG)).toFixed(1)}" cy="${(95 * Math.sin(i * TAU / NG)).toFixed(1)}" r="3.8" fill="#3a3f4a" stroke="#c4c9d3" stroke-width="1.2"/>`;
+  return `<svg viewBox="-100 -100 200 200" style="width:100%;height:100%"><circle r="95" fill="none" stroke="#dfe3ea" stroke-width="3.6"/><circle r="92" fill="none" stroke="#9aa2b0" stroke-width=".8"/><circle r="84" fill="none" stroke="#aab0bd" stroke-width="2.2"/>
+    <polygon points="${lat}" fill="none" stroke="#98a0ae" stroke-width="1"/><circle r="46" fill="none" stroke="#aab0bd" stroke-width="1.6"/><circle r="24" fill="none" stroke="#aab0bd" stroke-width="1.2"/>${cross}${spk}${lights}${piv}
+    <circle r="15" fill="#aeb4c0" stroke="#4a4f5a" stroke-width="2.4"/><circle r="10" fill="#d5d9e2" stroke="#6a707c" stroke-width="1.4"/><circle r="4.5" fill="#e4572e"/></svg>`;
+}
+function startFair(now) {
+  const tr = state.trip;
+  tr.bus.el.remove(); tr.bus.lay.remove(); tr.bus.lay.remove(); clearTimeout(tr.bus.bt); clearTimeout(tr.bus.bt2);
+  scene.classList.add("fairing");
+  const els = [];
+  const mk = (cls, html) => { const e = tEl(cls, html); els.push(e); return e; };
+  const ft = tr.ft = { els, rot: 0, rot2: 0, qw: [], qc: [], gond: [], selfies: [], nextSelfie: now + rand(90000, 140000), horses: [], poles: [], reserve: 8 };
+  const stalls = Array.from({ length: 7 }, (_, i) => `<i class="stall" style="left:${2 + i * 14}%;--c:${GOND_COLORS[i % 7]}"></i>`).join("");
+  const bulbs = Array.from({ length: 44 }, (_, i) => `<i class="bulb" style="left:${i * 2.3}%;top:calc(37% + ${Math.round(Math.abs(Math.sin(i / 3.5)) * 14)}px);background:${GOND_COLORS[i % 7]}"></i>`).join("");
+  mk("tfbg", stalls + bulbs);
+  ft.wGround = mk("tfx wgnd");
+  ft.wBase = mk("tfx", '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;overflow:visible"><g fill="none" stroke-linecap="round" vector-effect="non-scaling-stroke"><path d="M44 0 L2 100 M56 0 L98 100" stroke="#5d6370" stroke-width="3" vector-effect="non-scaling-stroke"/><path d="M50 0 L10 100 M50 0 L90 100" stroke="#7b8190" stroke-width="5" vector-effect="non-scaling-stroke"/><path d="M50 0 L5 100 M50 0 L95 100" stroke="#a4abba" stroke-width="1.6" vector-effect="non-scaling-stroke"/><path d="M36 35 L64 35 M26 62 L74 62 M36 35 L74 62 M64 35 L26 62 M19 86 L81 86" stroke="#8a91a0" stroke-width="2" vector-effect="non-scaling-stroke"/></g><rect x="3" y="97" width="16" height="3" fill="#444b57"/><rect x="81" y="97" width="16" height="3" fill="#444b57"/></svg>');
+  ft.wRot = mk("tfx", wheelSvg());
+  for (let i = 0; i < NG; i++) {
+    const g = { back: mk("gcab", '<i class="gh"></i><i class="groof"></i><i class="gbody"></i>'), front: mk("gcab gfront"), riders: [], pph: 0, loaded: now - 25000 };
+    [g.back, g.front].forEach(e => { e.style.setProperty("--c", GOND_COLORS[i]); e.style.setProperty("--cd", shade(GOND_COLORS[i], -0.3)); });
+    ft.gond.push(g);
+  }
+  ft.cPlat = mk("tfx cplat"); ft.cDrum = mk("tfx cdrum");
+  const wedge = Array.from({ length: 10 }, (_, i) => { const c = i % 2 ? "#fff6e0" : "#d62f2f"; return `<polygon points="100,6 ${i * 20},38 ${i * 20 + 20},38" fill="${c}"/><path d="M${i * 20} 38 Q${i * 20 + 10} 56 ${i * 20 + 20} 38Z" fill="${c}"/>`; }).join("");
+  const cbulb = Array.from({ length: 10 }, (_, i) => `<circle cx="${i * 20 + 10}" cy="49" r="2.6" fill="#ffe27a"/>`).join("");
+  ft.cCan = mk("tfx", `<svg viewBox="0 0 200 56" preserveAspectRatio="none" style="width:100%;height:100%;overflow:visible">${wedge}<rect x="0" y="36" width="200" height="4" fill="#ffd86b"/><path d="M60 24 L100 5 L140 24Z" fill="#b01f2c" opacity=".35"/><polygon points="100,6 66,22 134,22" fill="none" stroke="#ffd86b" stroke-width="1.6"/>${cbulb}<circle cx="100" cy="5" r="4.2" fill="#ffd86b"/><path d="M100 5 L100 -15 L116 -10 L100 -5" fill="#d62f2f"/></svg>`);
+  for (let k = 0; k < 8; k++) ft.poles.push(mk("tfx cpolel"));
+  for (let k = 0; k < 8; k++) ft.horses.push(mk("chorse", horseSvg(HORSE_COLORS[k % 5])));
+  ft.car = { phase: "run", until: now + rand(30000, 40000), spd: 0.9, slots: Array(8).fill(null), loadAt: 0 };
+
+  walkers.forEach(w => {
+    w.el.style.display = ""; w.el.classList.remove("tnoname", "standing");
+    w.el.querySelector(".flipper").insertAdjacentHTML("beforeend", '<i class="phone"></i>');
+    w.tp = { m: "cq" }; w.tsc = null; w.tz = null; w.sready = false; w.stand = false;
+  });
+  const pool = shuffle(walkers), N = pool.length;
+  ft.reserve = Math.min(Math.max(10, Math.round(N * 0.32)), Math.round(N * 0.5));
+  const nc = Math.min(6 + Math.floor(Math.random() * 3), Math.floor(N * 0.25));
+  const slots = shuffle([0, 1, 2, 3, 4, 5, 6, 7]);
+  for (let i = 0; i < nc; i++) { const w = pool.pop(); rideMode(w, "cride"); ft.car.slots[slots[i]] = w; }
+  ft.gond.forEach(g => {
+    const n = Math.min(2 + Math.floor(Math.random() * 3), pool.length - ft.reserve);
+    for (let i = 0; i < n; i++) { const w = pool.pop(); rideMode(w, "gride"); g.riders.push(w); }
+  });
+  const nQc = Math.ceil(pool.length * 0.6);
+  pool.forEach((w, i) => { const key = i < nQc ? "c" : "w"; w.tp = { m: "cq", q: key }; w.el.classList.add("tsmall"); qArr(ft, key).push(w); });
+  ft.rot = Math.random() * TAU;
+  ft.gond.forEach(g => { g.pph = 99; });
+  updateFair(now, 0);
+  ft.gond.forEach((g, i) => { g.pph = ((ft.rot + i * TAU / NG - Math.PI / 2) % TAU + TAU) % TAU; });
+  walkers.forEach(w => { if (w.tp.m === "cq") { const s = fairSlot(w); tPos(w, s.x, s.y); } });
+  tr.phase = "fair"; tr.fairT0 = now;   // the 5 minutes start the moment the black screen lifts
+  curtainOff();
+}
+function rideMode(w, m) {
+  w.tp = { m, seat: null }; w.tsc = w.ss || 0.4;
+  w.el.classList.remove("tsmall", "selfie"); w.el.classList.add("tnoname");   // names are hidden on the rides
+}
+const qArr = (ft, k) => k === "w" ? ft.qw : ft.qc;
+function chooseQ(ft) {
+  if (ft.qc.length < 7) return "c";
+  if (ft.qw.length < 4) return "w";
+  return Math.random() < 0.5 ? "c" : "w";
+}
+// single-file line right next to its own ride; the line is squeezed so the two queues never run into each other
+function fairSlot(w) {
+  const ft = state.trip.ft, key = w.tp.q || "c", arr = qArr(ft, key), k = Math.max(0, arr.indexOf(w)), n = Math.max(1, arr.length);
+  const wheel = key === "w";
+  // wheel line starts right under the wheel's loading point; carousel line starts right at the platform's front edge
+  const sx = wheel ? ft.wcx + 0.45 * ft.R : ft.ccx - 0.95 * ft.rx;
+  const x0w = ft.wcx + 0.45 * ft.R, x0c = ft.ccx - 0.95 * ft.rx;
+  const nw = Math.max(1, ft.qw.length), nc = Math.max(1, ft.qc.length);
+  const total = Math.max(60, x0c - x0w - 30);   // room between the two rides, shared by the two lines by head count
+  const span = total * (wheel ? nw : nc) / (nw + nc);
+  const sp = Math.max(22, Math.min(36, span / n));
+  // one single line: runs sideways along the ground in front of its ride, a hair of depth per person so nobody overlaps
+  const y = wheel ? ft.baseY + 20 + k * 0.6 : ft.cby + 1.12 * ft.ry + 16 * ft.cs + k * 0.6;
+  return { x: sx + (wheel ? 1 : -1) * k * sp, y };
+}
+function flashSelfie() {
+  const fl = document.getElementById("flash");
+  fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
+}
+function updateFair(now, dt) {
+  const ft = state.trip.ft, W = innerWidth, H = innerHeight;
+  const R = Math.min(0.24 * H, 0.17 * W), kk = R / 200, wcx = 0.26 * W, baseY = tY(0.12), hubY = baseY - R - 0.02 * H;
+  const rx = Math.min(0.14 * W, 0.22 * H), ry = rx * 0.26, ccx = 0.73 * W, cby = tY(0.2), cs = rx / 150, zr = Math.round(tY(0.1));
+  Object.assign(ft, { R, kk, wcx, baseY, hubY, rx, ry, ccx, cby, cs, zr });
+  ft.qw = ft.qw.filter(w => walkers.includes(w)); ft.qc = ft.qc.filter(w => walkers.includes(w));
+
+  // ferris wheel: 8 gondolas; each time one passes the bottom its riders may get off and a new group of 2-4 boards
+  ft.rot += dt * TAU / 52;
+  ft.gond.forEach((g, i) => {
+    g.riders = g.riders.filter(w => walkers.includes(w));
+    const a = ft.rot + i * TAU / NG;
+    g.x = wcx + R * Math.cos(a); g.y = hubY + R * Math.sin(a);
+    const n = g.riders.length;
+    g.riders.forEach((w, j) => { w.tp.seat = { x: g.x + (j - (n - 1) / 2) * 20 * kk, y: g.y + 64 * kk, s: 0.25 * kk, z: zr + 2 }; });
+    const ph = ((a - Math.PI / 2) % TAU + TAU) % TAU;
+    if (dt > 0 && ph < g.pph) swapGond(g, now);
+    g.pph = ph;
+  });
+
+  // carousel: rides ~35 s, slows down, riders get off, 6-8 new ones board from the carousel queue
+  const car = ft.car;
+  if (car.phase === "run" && now >= car.until) car.phase = "stop";
+  else if (car.phase === "stop") {
+    car.spd = Math.max(0, car.spd - dt * 0.25);
+    if (car.spd <= 0) {
+      car.slots.forEach(w => { if (w && w.tp) dismount(w, chooseQ(ft)); });
+      car.slots.fill(null); car.phase = "load"; car.loadAt = now + 1500;
+    }
+  } else if (car.phase === "load" && now >= car.loadAt) {
+    const ready = ft.qc.filter(w => w.tp.m === "cq" && !w.tp.sf);
+    const n = Math.min(6 + Math.floor(Math.random() * 3), ready.length);
+    shuffle([0, 1, 2, 3, 4, 5, 6, 7]).slice(0, n).forEach((s, i) => {
+      const w = ready[i]; ft.qc.splice(ft.qc.indexOf(w), 1); rideMode(w, "cboard"); car.slots[s] = w;
+    });
+    car.phase = "start";
+  } else if (car.phase === "start") {
+    car.spd = Math.min(0.9, car.spd + dt * 0.3);
+    if (car.spd >= 0.9) { car.phase = "run"; car.until = now + rand(30000, 40000); }
+  }
+  ft.rot2 += car.spd * dt;
+  for (let k = 0; k < 8; k++) {
+    const bb = ft.rot2 + k * TAU / 8, front = Math.sin(bb) > 0, bob = Math.sin(ft.rot2 * 5 + k) * 2 * cs;
+    const x = ccx + 0.88 * rx * Math.cos(bb), y = cby + 0.9 * ry * Math.sin(bb) + bob;
+    ft.horses[k]._p = { x, y, z: zr + (front ? 6 : 1), front };
+    const w = car.slots[k];
+    if (w && !walkers.includes(w)) car.slots[k] = null;
+    else if (w) w.tp.seat = { x, y: y + 14 * cs, s: 0.3 * cs, z: zr + (front ? 7 : 2) };
+  }
+
+  // selfies are very rare: roughly every 2-3.5 min two people in one queue pull out their phones
+  if (now >= ft.nextSelfie) {
+    ft.nextSelfie = now + rand(130000, 210000);
+    const cand = [ft.qw, ft.qc].map(a => a.filter(w => w.tp.m === "cq" && w.tp.arr && !w.tp.sf)).filter(a => a.length >= 2);
+    if (cand.length) {
+      const a = pick(cand), n = Math.min(a.length, 2), i = Math.floor(Math.random() * (a.length - n + 1));
+      const g = a.slice(i, i + n);
+      g.forEach(w => { w.tp.sf = true; });
+      g[0].el.classList.add("selfie"); say(g[0], "Selfie zamanı! Gülümseyin!");
+      ft.selfies.push({ g, fire: now + 2200, end: now + 3800, done: false });
+    }
+  }
+  ft.selfies = ft.selfies.filter(s => {
+    if (!s.done && now >= s.fire) { s.done = true; flashSelfie(); say(s.g[s.g.length - 1], pick(SELFIE_AFTER)); }
+    if (now >= s.end) { s.g.forEach(w => { if (w.tp) w.tp.sf = false; w.el.classList.remove("selfie"); }); return false; }
+    return true;
+  });
+}
+function dismount(w, key) {
+  const ft = state.trip.ft;
+  w.tp = { m: "off", q: key }; w.el.classList.remove("tnoname"); w.el.classList.add("tsmall"); w.tz = null; w.tview = null;
+  qArr(ft, key).push(w);
+}
+function swapGond(g, now) {
+  const ft = state.trip.ft;
+  if (g.riders.length && now - g.loaded > 20000) { g.riders.forEach(w => dismount(w, chooseQ(ft))); g.riders = []; }
+  if (g.riders.length) return;
+  const ready = ft.qw.filter(w => w.tp.m === "cq" && !w.tp.sf);
+  const n = Math.min(2 + Math.floor(Math.random() * 3), ready.length);
+  if (n < 2) return;
+  for (let i = 0; i < n; i++) { const w = ready[i]; ft.qw.splice(ft.qw.indexOf(w), 1); rideMode(w, "gboard"); g.riders.push(w); }
+  g.loaded = now;
+}
+function stepFairWalker(w, dt, now) {
+  const p = w.tp, sp = 140 * state.base * (0.75 + 0.25 * w.sl);
+  if (p.m === "cq" || p.m === "off") {
+    const s = fairSlot(w), a = tWalk(w, dt, s.x, s.y, sp);
+    tNorm(w, dt);
+    p.arr = a;
+    if (a) { w.tview = "front"; if (p.m === "off") p.m = "cq"; }
+    if (a && !w.speaking && now > w.nextTalk) { w.nextTalk = now + rand(6000, 14000); say(w, pick(FAIR_SAYS)); }
+  } else if ((p.m === "gboard" || p.m === "cboard") && p.seat) {
+    const f = 1 - Math.exp(-7 * dt), cx = w.x + 45, cy = tY(w.sl);
+    tPos(w, cx + (p.seat.x - cx) * f, cy + (p.seat.y - cy) * f);
+    w.tsc += (p.seat.s - w.tsc) * f; w.tz = 8000; w.tview = "front"; setStand(w, false);
+    if (Math.hypot(p.seat.x - cx, p.seat.y - cy) < 5) p.m = p.m === "gboard" ? "gride" : "cride";
+  } else if (p.seat) {
+    tPos(w, p.seat.x, p.seat.y); w.tsc = p.seat.s; w.tz = p.seat.z; w.tview = "front"; setStand(w, true);
+  }
+}
+function renderTrip(now) {
+  const tr = state.trip; if (!tr) return;
+  const b = tr.bus;
+  if (["in", "board", "count", "leave"].includes(tr.phase)) {
+    const foot = tY(0.4), tf = `translate(${b.x}px, ${foot - tr.H}px)`;
+    for (const e of [b.el, b.lay]) { e.style.width = tr.W + "px"; e.style.height = tr.H + "px"; e.style.transform = tf; }
+    b.el.style.zIndex = Math.round(foot) - 5;   // always behind the students who walk up to the door (they get tz >= this + 3)
+    b.lay.style.zIndex = 9000;                  // speech bubbles stay readable
+    b.cnt.style.display = tr.phase === "board" ? "block" : "none";
+    if (tr.cntTxt) b.cnt.textContent = tr.cntTxt;
+  }
+  const ft = tr.ft; if (!ft) return;
+  const { R, kk, wcx, baseY, hubY, rx, ry, ccx, cby, cs, zr } = ft;
+  const put = (e, l, t, w, h, z) => { const s = e.style; s.left = l + "px"; s.top = t + "px"; s.width = w + "px"; s.height = h + "px"; s.zIndex = z; };
+  put(ft.wBase, wcx - R * 0.55, hubY, R * 1.1, baseY - hubY, zr - 1);
+  put(ft.wGround, wcx - R * 0.8, baseY - 3, R * 1.6, 12, zr - 1);
+  put(ft.wRot, wcx - R, hubY - R, 2 * R, 2 * R, zr); ft.wRot.style.transform = `rotate(${ft.rot}rad)`;
+  ft.gond.forEach(g => {
+    put(g.back, g.x - 44 * kk, g.y, 88 * kk, 70 * kk, zr + 1);
+    put(g.front, g.x - 40 * kk, g.y + 44 * kk, 80 * kk, 26 * kk, zr + 3);
+  });
+  const capTop = cby - 1.2 * rx, capH = 0.5 * rx, capBot = capTop + capH * 0.78;
+  put(ft.cPlat, ccx - rx * 1.08, cby - ry * 1.08, rx * 2.16, ry * 2.16, zr);
+  ft.cPlat.style.boxShadow = `0 ${6 * cs}px 0 #4a2f1d, 0 ${10 * cs}px 10px rgba(0,0,0,0.35)`;
+  put(ft.cDrum, ccx - 0.17 * rx, cby - 0.75 * rx, 0.34 * rx, 0.75 * rx, zr + 4);
+  put(ft.cCan, ccx - 1.15 * rx, capTop, 2.3 * rx, capH, zr + 9);
+  ft.horses.forEach((h, k) => {
+    const p = h._p; if (!p) return;
+    h.style.width = 62 * cs + "px"; h.style.height = 51 * cs + "px"; h.style.zIndex = p.z;
+    h.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%,-55%) scaleX(${p.front ? -1 : 1})`;
+    put(ft.poles[k], p.x - 2 * cs, capBot, 4 * cs, Math.max(2, p.y - capBot), p.z);
+  });
+}
+
+function endFair(now) {
+  const tr = state.trip;
+  tr.ft.els.forEach(e => e.remove()); tr.ft = null;
+  scene.classList.remove("fairing");
+  document.body.classList.add("dusk");   // the countryside comes back at dusk
+  walkers.forEach(w => {
+    resetTripWalker(w);
+    w.x = Math.random() < 0.5 ? -80 : innerWidth; w.dir = w.x < 0 ? 1 : -1; w.lane = rand(0.05, 1);
+  });
+}
+function resetTripWalker(w) {
+  w.tp = null; w.tsc = null; w.tview = null; w.tz = null; w.sready = false; w.wp = null; w.wait = 0; w.stand = false;
+  w.el.style.display = "";
+  w.el.classList.remove("tnoname", "tsmall", "selfie", "standing");
+  w.el.querySelectorAll(".phone").forEach(e => e.remove());
+}
+function finishTrip(now) {
+  const tr = state.trip; if (!tr) return;
+  cleanupTrip();
+  state.nextHalay = now + CONFIG.SIMIT_HALAY_DELAY;
+}
+function cleanupTrip() {
+  const tr = state.trip;
+  if (tr) {
+    tr.bus.el.remove(); tr.bus.lay.remove(); clearTimeout(tr.bus.bt); clearTimeout(tr.bus.bt2);
+    if (tr.ft) tr.ft.els.forEach(e => e.remove());
+    walkers.forEach(resetTripWalker);
+  }
+  state.trip = null;
+  scene.classList.remove("fairing");
+  curtainOff();
+}
+/* =====================  /BUS TRIP + FAIR  ===================== */
+
 function checkHalay(now) {
   if (!menu.classList.contains("gone")) return;
 
   // the simit scene always wins: no halay while it runs or is about to start
-  const simitBusy = !!state.simit || !!state.volley || !!state.photo || !!state.tug || now >= state.nextTug - CONFIG.SIMIT_GUARD_MS || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextMacun - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
+  const simitBusy = !!state.trip || state.nextTrip !== Infinity || !!state.simit || !!state.volley || !!state.photo || !!state.tug || now >= state.nextTug - CONFIG.SIMIT_GUARD_MS || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextMacun - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
 
   if (!state.halay && !simitBusy && now >= state.nextHalay && walkers.length) {
     state.halay = true;
@@ -3827,6 +4392,7 @@ function tick(now) {
   checkMacun(now);
   checkPhoto(now);
   checkHalay(now);
+  checkTrip(now);
 
   const n = Math.max(walkers.length, state.expected);
   const base = n <= 10 ? 1 : Math.max(0.55, 1 - (n - 10) * 0.017);
@@ -3836,6 +4402,7 @@ function tick(now) {
   updateVolley(now, dt);
   updatePhoto(now, dt);
   updateTug(now, dt);
+  updateTrip(now, dt);
 
   const e0 = ensureEllipse(walkers.length || 1);
   const rotD = (Math.min(now, state.halayEnd) - state.halayStart) * CONFIG.HALAY_SPEED / 1000;
@@ -3857,7 +4424,7 @@ function tick(now) {
     const e = w.hk * w.hk * (3 - 2 * w.hk);
 
     // the simit scene takes over once any dance / halay pose has faded out
-    const sceneMode = state.tug && w.tg ? "tug" : state.simit && w.sm ? "simit" : (state.volley && w.vb ? "volley" : (state.photo && w.ph ? "photo" : null));
+    const sceneMode = state.trip && w.tp ? "trip" : state.tug && w.tg ? "tug" : state.simit && w.sm ? "simit" : (state.volley && w.vb ? "volley" : (state.photo && w.ph ? "photo" : null));
     const sceneOn = !!sceneMode && w.hk <= 0 && w.k < 0.03;
     if (sceneOn && !w.sready) {
       w.sready = true;
@@ -3870,7 +4437,8 @@ function tick(now) {
     let th = 0;
 
     if (sceneOn) {
-      if (sceneMode === "tug") stepTug(w, dt, now);
+      if (sceneMode === "trip") stepTrip(w, dt, now);
+      else if (sceneMode === "tug") stepTug(w, dt, now);
       else if (sceneMode === "simit") stepScene(w, dt, now);
       else if (sceneMode === "photo") stepPhoto(w, dt, now);
       else stepVolley(w, dt, now);
@@ -3886,7 +4454,8 @@ function tick(now) {
     }
 
     const pm = sceneOn && sceneMode === "photo" ? state.photo.mul : 1;
-    const s = base * pm * (0.75 + 0.25 * L) * (1 + 0.7 * w.k) * (1 + (e0.hs - 1) * e);
+    let s = base * pm * (0.75 + 0.25 * L) * (1 + 0.7 * w.k) * (1 + (e0.hs - 1) * e);
+    if (sceneOn && sceneMode === "trip" && w.tsc) s = w.tsc;
     const h = 150 * s;
 
     if (sceneOn) {
@@ -3908,6 +4477,7 @@ function tick(now) {
     const arrived = state.halay && w.hk >= 1;
     let view = "side";
     if (sceneOn && sceneMode === "photo" && w.phAt) view = "front";
+    if (sceneOn && sceneMode === "trip" && w.tview) view = w.tview;
 
     if (arrived) {
       const fx = -Math.cos(th);
@@ -3942,13 +4512,14 @@ function tick(now) {
     w.stop = foot - h - (w.jy || 0);
     w.el.style.height = `${h}px`;
     w.el.style.transform = `translate(${px}px, ${foot - h - (w.jy || 0)}px)`;
-    w.el.style.zIndex = w.speaking ? 9000 : (w.dance ? 8500 : Math.round(foot));
+    w.el.style.zIndex = w.speaking ? 9000 : (sceneOn && sceneMode === "trip" && w.tz != null ? w.tz : (w.dance ? 8500 : Math.round(foot)));
     w.el.querySelector(".flipper").style.transform = `scale(${view === "side" && w.dir < 0 ? -s : s}, ${s})`;
 
     if (now > w.nextTalk) {
       // nobody chats during the halay: the speech bubbles would cover the dancers
       if (state.halay) { w.nextTalk = now + rand(4000, 8000); continue; }
       if (state.photo && state.photo.quiet) { w.nextTalk = now + rand(2000, 4000); continue; }
+      if (state.trip && w.tp && (w.tp.m === "in" || w.tp.m === "step" || /ride|board/.test(w.tp.m))) { w.nextTalk = now + rand(3000, 6000); continue; }
       say(w);
       w.nextTalk = now + rand(0.7, 1.3) * Math.max(5000, n * 1400);
     }
@@ -3960,13 +4531,14 @@ function tick(now) {
   renderVolley(now);
   renderPhoto(now);
   renderTug(now);
+  renderTrip(now);
   requestAnimationFrame(tick);
 }
 
 let chatHide = null;
 
 function showChat() {
-  if (!menu.classList.contains("gone") || walkers.length < 2 || state.volley || state.tug) return;
+  if (!menu.classList.contains("gone") || walkers.length < 2 || state.volley || state.tug || state.trip) return;
 
   const a = pick(walkers);
   let b = pick(walkers);
@@ -3998,7 +4570,7 @@ function faceSvg(w) {
 }
 
 function startDance() {
-  if (!menu.classList.contains("gone") || state.halay || state.simit || state.volley || state.photo || state.tug) return;
+  if (!menu.classList.contains("gone") || state.halay || state.simit || state.volley || state.photo || state.tug || state.trip || state.nextTrip !== Infinity) return;
   if (performance.now() >= state.nextTug - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextSimit - CONFIG.SIMIT_GUARD_MS) return;
@@ -4041,6 +4613,7 @@ function openClass(className) {
   state.nextHalay = performance.now() + CONFIG.HALAY_EVERY;
   state.nextSimit = performance.now() + CONFIG.SIMIT_FIRST;
   state.nextMacun = Infinity;
+  state.nextTrip = Infinity;
   state.nextVolley = performance.now() + CONFIG.VOLLEY_AT;
   state.nextPhoto = performance.now() + CONFIG.PHOTO_AT;
 
@@ -4074,6 +4647,9 @@ function closeClass() {
   }
   state.nextSimit = Infinity;
   state.nextMacun = Infinity;
+  cleanupTrip();
+  state.nextTrip = Infinity;
+  document.body.classList.remove("dusk");
   if (state.volley) {
     clearTimeout(state.volley.bannerT);
     Object.values(state.volley.els).forEach(e => e.remove());
