@@ -648,8 +648,12 @@
   #vball svg { display: block; width: 100%; height: 100%; }
   #vshadow { position: absolute; left: 0; top: 0; z-index: 2; display: none; border-radius: 50%; background: rgba(0, 0, 0, 0.38); pointer-events: none; will-change: transform; }
 
-  .jersey { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; }
-  .walker.jer[data-view="side"] .jersey { display: block; }
+  /* the jersey is now the student's own shirt (torso + sleeves), so it moves, leans and falls with them */
+  .jersey { display: none !important; }
+  .jst { display: none; }
+  .walker.jer .tsh { fill: var(--jc, #d62f2f); }
+  .walker.jer .tsl { fill: var(--jc, #d62f2f); filter: brightness(0.82); }
+  .walker.jer .jst { display: block; }
 
   .walker.vsm .name { font-size: 11px; padding: 1px 7px; }
   .walker.vsm2 .name { top: -22px; }
@@ -717,6 +721,22 @@
   .rig .vj { display: none; }
   .walker.jer .rig .vj { display: inline; }
   .walker.jer .rig .vp { display: none; }
+
+  /* ---------- Tug of war ---------- */
+  #tugfield { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 0.8s ease; }
+  #tugfield.shown { opacity: 1; }
+  #tugfield .tl { position: absolute; left: 0; top: 0; background: rgba(255, 255, 255, 0.85); border-radius: 2px; will-change: transform; }
+  #tugfield .tl.mid { background: #ffe14d; }
+  #tugrope { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; opacity: 0; transition: opacity 0.5s ease; }
+  #tugrope.shown { opacity: 1; }
+  .walker.tug .p-side { transform-origin: 50% 98%; animation: tugLean 0.55s ease-in-out infinite alternate; animation-delay: var(--sd, 0s); }
+  .walker.tug .arm, .walker.tug .arm2 { display: block; animation: none; transform: rotate(-72deg); }
+  .walker.tug .arm2 { transform: rotate(-66deg); }
+  .walker.tug .leg { animation: none; transform: rotate(-14deg); }
+  .walker.tug .leg.b { animation: none; transform: rotate(26deg); }
+  @keyframes tugLean { from { transform: rotate(-12deg); } to { transform: rotate(-19deg); } }
+  .walker.tugfall .p-side { transform-origin: 50% 98%; transform: rotate(74deg); transition: transform 0.6s cubic-bezier(0.5, 0, 0.9, 0.6); }
+  .walker.tugfall .arm, .walker.tugfall .arm2 { display: block; animation: none; transform: rotate(-150deg); }
 
   /* ---------- Class photo scene (minute 8 -> 9:30) ---------- */
   .grin { display: none; }
@@ -932,6 +952,13 @@ const CONFIG = {
   VOLLEY_BREAK_MS: 4500,    // pause between sets
   VOLLEY_FINAL_MS: 8000,    // celebration at the end
   VOLLEY_FAN_GAP: 120,      // fans stand at least this far (px) outside the court side lines
+  TUG_AFTER_VOLLEY_MS: 60000, // tug of war: exactly 1 min after the volleyball match ends, however long the match was
+  TUG_MIN_PLAYERS: 4,
+  TUG_MAX_PER_TEAM: 8,
+  TUG_READY_MS: 4200,       // "Hazır! 3 2 1 ÇEK!"
+  TUG_MIN_MS: 24000,        // the pull itself lasts 24-36 s
+  TUG_MAX_MS: 36000,
+  TUG_END_MS: 7000,         // celebration after the flag crosses the line
   PHOTO_AT: 480000,         // class photo: once, at minute 8 after a class is opened
   PHOTO_FOR: 90000          // ...and the scene is over at 9:30
 };
@@ -966,6 +993,8 @@ const state = {
   nextVolley: Infinity,
   photo: null,
   nextPhoto: Infinity,
+  tug: null,
+  nextTug: Infinity,
   base: 1,
   ellipse: null,
   lastFrame: performance.now()
@@ -1018,14 +1047,14 @@ function svg(shirt, skin, view = "side", girl = false, hair = HAIR) {
     <path d="M${cx - 2.9} 29 Q${cx} 26.9 ${cx + 2.9} 29" stroke="${hairD}" stroke-width=".8" fill="none" stroke-linecap="round"/>
     <path d="M${cx - 2.4} 30.3 Q${cx} 31.4 ${cx + 2.4} 30.3" stroke="${skinD}" stroke-width=".4" fill="none" opacity=".6"/>`;
 
-  const sleeve = (x, w) => `<rect x="${x - .5}" y="49" width="${w + 1}" height="14" rx="3.4" fill="url(#sl${u})"/>`;
+  const sleeve = (x, w) => `<rect class="tsl" x="${x - .5}" y="49" width="${w + 1}" height="14" rx="3.4" fill="url(#sl${u})"/>`;
   const armF = (x, cls) => `<g class="${cls}"><rect x="${x}" y="50" width="7" height="38" rx="3.5" fill="url(#sk${u})"/>
       <ellipse cx="${x + 3.5}" cy="90" rx="3.6" ry="4.6" fill="${skin}"/>${sleeve(x, 7)}</g>`;
   const shoeF = x => `<path d="M${x - .5} 137 L${x + 11} 137 L${x + 11.5} 143 Q${x + 12} 147 ${x + 8} 147 L${x + 1} 147 Q${x - 1.5} 146.5 ${x - 1} 143 Z" fill="#2d2d33"/><path d="M${x - 1} 145 L${x + 12} 145 L${x + 12} 147 Q${x + 11} 148 ${x + 8} 148 L${x} 148 Q${x - 1.5} 147.5 ${x - 1} 145Z" fill="#e9e6df"/>`;
   const legsF = `
     <g class="fl"><rect x="34" y="90" width="10.8" height="48" rx="4" fill="url(#pa${u})"/>${shoeF(33.8)}</g>
     <g class="fr"><rect x="45.4" y="90" width="10.8" height="48" rx="4" fill="url(#pb${u})"/>${shoeF(45.4)}</g>`;
-  const torsoF = `<path d="M32 53 Q32 46.5 39 45.5 L51 45.5 Q58 46.5 58 53 L57 71 Q56 81 57 93 L33 93 Q34 81 33 71 Z" fill="url(#sh${u})"/>
+  const torsoF = `<path class="tsh" d="M32 53 Q32 46.5 39 45.5 L51 45.5 Q58 46.5 58 53 L57 71 Q56 81 57 93 L33 93 Q34 81 33 71 Z" fill="url(#sh${u})"/><rect class="jst" x="32.6" y="62" width="24.8" height="3.4" fill="#fff" opacity=".9"/>
       <rect x="33" y="89.5" width="24" height="4" fill="#262a38"/><rect x="43.6" y="89.8" width="2.8" height="3.4" rx=".5" fill="#c9b27a"/>`;
   const neckF = `<rect x="41" y="38" width="8" height="12" rx="3" fill="url(#sk${u})"/><ellipse cx="45" cy="43.8" rx="7.2" ry="3" fill="#000" opacity=".14"/>`;
 
@@ -1081,7 +1110,7 @@ function svg(shirt, skin, view = "side", girl = false, hair = HAIR) {
     <g class="leg b"><rect x="39.5" y="90" width="11" height="48" rx="4.5" fill="url(#pb${u})"/>${shoeS}</g>
     <g class="arm"><rect x="41.5" y="50" width="7" height="38" rx="3.5" fill="url(#sk${u})"/><ellipse cx="45" cy="90" rx="3.6" ry="4.6" fill="${skin}"/>${sleeve(41.5, 7)}</g>
     <g class="arm arm2"><rect x="41.5" y="50" width="7" height="38" rx="3.5" fill="url(#sk${u})"/><ellipse cx="45" cy="90" rx="3.6" ry="4.6" fill="${skin}"/>${sleeve(41.5, 7)}</g>
-    <path d="M37 53 Q37 46.5 43 45.5 L49 45.5 Q54.5 46.5 54 53 L54.4 71 Q55 81 53.6 93 L36.4 93 Q37.6 81 37 71 Z" fill="url(#sh${u})"/>
+    <path class="tsh" d="M37 53 Q37 46.5 43 45.5 L49 45.5 Q54.5 46.5 54 53 L54.4 71 Q55 81 53.6 93 L36.4 93 Q37.6 81 37 71 Z" fill="url(#sh${u})"/><rect class="jst" x="36.6" y="62" width="17.8" height="3.4" fill="#fff" opacity=".9"/>
     <rect x="36.6" y="89.5" width="17.4" height="4" fill="#262a38"/>
     <rect x="42" y="38" width="8.4" height="12" rx="3" fill="url(#sk${u})"/><ellipse cx="46" cy="43.8" rx="6.5" ry="3" fill="#000" opacity=".14"/>
     <path d="M35 27 Q35 16 46 16 Q56.6 16 56.6 26 Q56.7 28.4 57.6 30.4 Q59 32 57.2 33 Q57.4 35 56.2 37 Q55.4 38.3 54.2 39.4 Q50.4 43.8 45 43.8 Q39 43.8 36 38.4 Q34.6 33 35 27Z" fill="url(#fc${u})"/>
@@ -1195,7 +1224,8 @@ function addStudent(name, index = walkers.length) {
   el.classList.add("pz" + w.pz);
   el.style.setProperty("--sd", (-rand(0, 2.3)).toFixed(2) + "s");
   w.ph = null; w.phAt = false; w.phX = 0; w.phL = 0.6; w.phSp = 0; w.phRel = 0;
-  if (state.simit) joinSimit(w);
+  if (state.tug) joinTug(w);
+  else if (state.simit) joinSimit(w);
   else if (state.volley) joinVolley(w);
   else if (state.photo) joinPhoto(w);
 }
@@ -1449,6 +1479,7 @@ function vsay(v, text, ms = 3200) {
 }
 
 function pickSaying(w) {
+  if (state.tug) return pick(TUG_CHEERS);
   if (state.photo) return pick(PHOTO_SAYS);
   if (state.volley) return pick(VB_CHEERS);
   if (state.simit) return pick(w.sm === "got" ? SIMIT_EAT : SIMIT_BUY);
@@ -1573,7 +1604,7 @@ function stepScene(w, dt, now) {
 
 function checkSimit(now) {
   if (!menu.classList.contains("gone")) return;
-  if (!state.simit && !state.volley && !state.photo && now >= state.nextSimit) startSimit(now);
+  if (!state.simit && !state.volley && !state.photo && !state.tug && now >= state.nextSimit && now < state.nextTug - CONFIG.SIMIT_GUARD_MS) startSimit(now);
 }
 
 function startSimit(now) {
@@ -1829,7 +1860,7 @@ function camScale() {
 
 function checkPhoto(now) {
   if (!menu.classList.contains("gone")) return;
-  if (!state.photo && !state.simit && !state.volley && now >= state.nextPhoto) startPhoto(now);
+  if (!state.photo && !state.simit && !state.volley && !state.tug && now >= state.nextPhoto) startPhoto(now);
 }
 
 function startPhoto(now) {
@@ -3020,7 +3051,7 @@ function planVolleyMatch() {
 
 function checkVolley(now) {
   if (!menu.classList.contains("gone")) return;
-  if (!state.volley && !state.simit && !state.photo && now >= state.nextVolley) startVolley(now);
+  if (!state.volley && !state.simit && !state.photo && !state.tug && now >= state.nextVolley) startVolley(now);
 }
 
 function startVolley(now) {
@@ -3327,14 +3358,293 @@ function endVolley(now) {
   state.nextVolley = Infinity;
   state.nextHalay = Math.max(state.nextHalay, now + CONFIG.SIMIT_HALAY_DELAY);
   if (state.nextSimit < now + 3000) state.nextSimit = now + 3000;
+  // the tug of war always starts exactly 1 minute after the match ends (whatever its length was)
+  state.nextTug = now + CONFIG.TUG_AFTER_VOLLEY_MS;
 }
 /* =====================  /VOLLEYBALL  ===================== */
+
+/* =====================  TUG OF WAR  ===================== */
+// Starts exactly 1 minute after the volleyball match is over and overrides halay, solo dances, the simit
+// scene and the class photo.  Two teams grab one rope, the flag in the middle swings back and forth and
+// finally one team drags it over the line.  Everybody else cheers from behind.
+const TUG_TEAMS = [{ name: "Turuncu", color: "#f08a1c" }, { name: "Yeşil", color: "#2f9e44" }];
+const TUG_CHEERS = [
+  "Çek çek çek!", "Bırakmayın!", "Hep birlikte!", "Biraz daha!", "Az kaldı, az kaldı!",
+  "Güçlü çekin!", "Sakın bırakma!", "Haydi haydi haydi!", "Ayaklarını yere bas!", "Yaşasın takımımız!"
+];
+const TUG_L = 0.7;   // the lane the two teams stand on
+
+function tgBanner(title, sub, ms) {
+  const tg = state.tug;
+  const el = document.getElementById("vbanner");
+  el.querySelector("b").textContent = title;
+  el.querySelector("small").textContent = sub || "";
+  el.classList.add("show");
+  if (tg) {
+    clearTimeout(tg.bannerT);
+    tg.bannerT = setTimeout(() => el.classList.remove("show"), ms);
+  }
+}
+
+function checkTug(now) {
+  if (!menu.classList.contains("gone")) return;
+  if (state.tug || now < state.nextTug) return;
+  if (state.volley) { state.nextTug = now + 1000; return; }   // never in the middle of a match
+  startTug(now);
+}
+
+function startTug(now) {
+  state.nextTug = Infinity;
+  const n = walkers.length;
+  if (n < CONFIG.TUG_MIN_PLAYERS) return;
+
+  // the tug of war overrides everything else: halay, solo dances, the simit scene and the class photo
+  if (state.halay) { state.halay = false; state.halayEnd = now; }
+  if (state.simit) endSimit(now);
+  if (state.photo) endPhoto(now);
+
+  const sc = state.base * (0.75 + 0.25 * TUG_L);
+  const room = innerWidth / 2 - 78 * sc - 46 * sc - 50;
+  const k = Math.max(1, Math.min(CONFIG.TUG_MAX_PER_TEAM, Math.floor(n / 2), Math.floor(room / (44 * sc))));
+  const order = shuffle(walkers);
+  const teams = [order.slice(0, k), order.slice(k, 2 * k)];
+  const fans = order.slice(2 * k);
+
+  const field = document.createElement("div");
+  field.id = "tugfield";
+  field.innerHTML = '<i class="tl"></i><i class="tl mid"></i><i class="tl"></i>';
+  scene.appendChild(field);
+  const rope = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  rope.id = "tugrope";
+  rope.innerHTML =
+    '<path class="r0" fill="none" stroke="#5a3a12" stroke-linecap="round"/>' +
+    '<path class="r1" fill="none" stroke="#c99a52" stroke-linecap="round"/>' +
+    '<path class="r2" fill="none" stroke="#8a5f24" stroke-linecap="round"/>' +
+    '<polygon class="fl" fill="#d62f2f" stroke="#7a1515" stroke-linejoin="round"/>';
+  scene.appendChild(rope);
+  setTimeout(() => field.classList.add("shown"), 30);
+
+  const tg = state.tug = {
+    phase: "gather", phaseStart: now, teams, fans, all: walkers.slice(),
+    winner: Math.random() < 0.5 ? 0 : 1,
+    D: rand(CONFIG.TUG_MIN_MS, CONFIG.TUG_MAX_MS),
+    waves: rand(2.5, 4), sw: Math.random() < 0.5 ? 1 : -1,
+    o: 0, locked: false, pullStart: 0, until: 0, step: 0, nextShout: 0,
+    s: sc, cx: innerWidth / 2, G: 46 * sc, sp: 44 * sc, M: 78 * sc, L: TUG_L,
+    bannerT: null, els: { field, rope }
+  };
+
+  walkers.forEach((w, i) => {
+    w.dance = null;
+    w.el.classList.remove("dancing");
+    w.sready = false;
+    w.wp = null;
+    w.wait = 0;
+    w.tgAt = false;
+    w.tgSp = rand(140, 190);
+    w.el.classList.add("vsm");
+    if (i % 2) w.el.classList.add("vsm2");
+  });
+  teams.forEach((tm, t) => tm.forEach(w => {
+    w.tg = "team";
+    w.tgT = t;
+    w.el.classList.add("jer");
+    w.el.style.setProperty("--jc", TUG_TEAMS[t].color);
+  }));
+  fans.forEach(w => { w.tg = "fan"; });
+
+}
+
+function joinTug(w) {
+  const tg = state.tug;
+  w.tg = "fan";
+  w.sready = false;
+  w.wp = null;
+  w.wait = 0;
+  w.tgAt = false;
+  w.tgSp = rand(140, 190);
+  w.el.classList.add("vsm");
+  tg.fans.push(w);
+  tg.all.push(w);
+}
+
+function tugOffset(tg, p) {
+  // team 0 stands on the left: when it wins the flag travels to the left (negative offset)
+  const W = tg.winner === 0 ? -1 : 1;
+  let o = W * tg.M * 0.86 * phSmooth(p);
+  o += tg.sw * tg.M * 0.6 * Math.sin(p * Math.PI * 2 * tg.waves) * Math.pow(1 - p, 0.8);   // the flag swings back and forth
+  o = phClamp(o, -0.95 * tg.M, 0.95 * tg.M);
+  if (p > 0.92) o += W * tg.M * 0.14 * phSmooth((p - 0.92) / 0.08);                       // final heave over the line
+  return phClamp(o, -tg.M, tg.M);
+}
+
+function stepTug(w, dt, now) {
+  const tg = state.tug;
+  const sPre = state.base * (0.75 + 0.25 * w.sl);
+  const tx = w.tgX - 45, tl = w.tgL;
+  let moving = false;
+
+  if (w.tg === "team" && tg.locked) {
+    // while pulling, the whole line travels with the rope
+    w.x = tx; w.sl = tl; w.tgAt = true;
+  } else {
+    const dx = tx - w.x, dl = tl - w.sl;
+    const dist = Math.hypot(dx, dl * innerHeight * 0.42);
+    const step = w.tgSp * sPre * dt;
+    if (dist > 1.5 && step > 0) {
+      if (dist <= step) { w.x = tx; w.sl = tl; }
+      else { const f = step / dist; w.x += dx * f; w.sl += dl * f; moving = true; }
+      if (Math.abs(dx) > 1) w.dir = dx > 0 ? 1 : -1;
+    }
+    w.tgAt = !moving && dist <= 3;
+  }
+  if (!moving && w.tgFace) w.dir = w.tgFace;
+  setStand(w, !moving);
+}
+
+function updateTug(now, dt) {
+  const tg = state.tug;
+  if (!tg) return;
+
+  // somebody was removed from the class: stop instead of leaving a ghost on the rope
+  if (!walkers.length || tg.all.some(w => !walkers.includes(w))) { endTug(now); return; }
+
+  const sc = state.base * (0.75 + 0.25 * TUG_L);
+  tg.s = sc; tg.cx = innerWidth / 2; tg.G = 46 * sc; tg.sp = 44 * sc; tg.M = 78 * sc;
+  const [A, B] = tg.teams;
+  const teamWalkers = A.concat(B);
+
+  if (tg.phase === "gather") {
+    const waited = now - tg.phaseStart;
+    if ((waited >= 5000 && teamWalkers.every(w => w.tgAt)) || waited >= 15000) {
+      tg.phase = "ready";
+      tg.phaseStart = now;
+      tg.step = 0;
+      teamWalkers.forEach(w => w.el.classList.add("tug"));
+      tg.els.rope.classList.add("shown");
+    }
+  } else if (tg.phase === "ready") {
+    const t = now - tg.phaseStart;
+    const seq = [[0, "Hazır!"], [1100, "3"], [2000, "2"], [2900, "1"], [3800, "ÇEK! 💪"]];
+    while (tg.step < seq.length && t >= seq[tg.step][0]) {
+      tgBanner(seq[tg.step][1], "", tg.step === seq.length - 1 ? 1300 : 800);
+      tg.step++;
+    }
+    if (t >= CONFIG.TUG_READY_MS) {
+      tg.phase = "pull";
+      tg.pullStart = now;
+      tg.locked = true;
+      tg.nextShout = now + 1500;
+      tg.fans.forEach(w => w.el.classList.add("cheer"));
+    }
+  } else if (tg.phase === "pull") {
+    const p = Math.min(1, (now - tg.pullStart) / tg.D);
+    tg.o = tugOffset(tg, p);
+    if (now >= tg.nextShout) {
+      const w = pick(walkers);
+      if (w) say(w, pick(TUG_CHEERS));
+      tg.nextShout = now + rand(1400, 2600);
+    }
+    if (p >= 1) {
+      tg.phase = "end";
+      tg.until = now + CONFIG.TUG_END_MS;
+      tg.teams.forEach((tm, t) => tm.forEach(w => {
+        w.el.classList.remove("tug");
+        w.el.classList.add(t === tg.winner ? "cheer" : "tugfall");
+      }));
+      tgBanner(`🏆 ${TUG_TEAMS[tg.winner].name} Takım kazandı!`, "", CONFIG.TUG_END_MS - 600);
+      const win = tg.teams[tg.winner];
+      if (win.length) say(pick(win), "Yaşasın! Kazandık!");
+    }
+  } else if (tg.phase === "end") {
+    if (now >= tg.until) { endTug(now); return; }
+  }
+
+  // positions: the teams stand on both sides of the flag, the fans spread out behind them
+  A.forEach((w, i) => { w.tgX = tg.cx + tg.o - tg.G - i * tg.sp; w.tgL = TUG_L; w.tgFace = 1; });
+  B.forEach((w, i) => { w.tgX = tg.cx + tg.o + tg.G + i * tg.sp; w.tgL = TUG_L; w.tgFace = -1; });
+  const nf = tg.fans.length, rows = nf > 10 ? 2 : 1, per = Math.ceil(nf / rows);
+  tg.fans.forEach((w, i) => {
+    const r = rows === 2 ? i % 2 : 0;
+    const col = rows === 2 ? Math.floor(i / 2) : i;
+    w.tgX = innerWidth * 0.08 + (col + 0.5) * (innerWidth * 0.84 / per) + (r ? 12 : 0);
+    w.tgL = r ? 0.16 : 0.3;
+    w.tgFace = w.tgX < tg.cx ? 1 : -1;
+  });
+}
+
+function renderTug(now) {
+  const tg = state.tug;
+  if (!tg) return;
+  const s = tg.s, cx = tg.cx;
+  const foot = innerHeight * 0.52 + TUG_L * innerHeight * 0.42;
+
+  // ground marks: centre line and the two lines the flag has to cross
+  const tl = tg.els.field.children;
+  [cx, cx - tg.M, cx + tg.M].forEach((x, i) => {
+    const el = tl[i];
+    el.style.width = `${Math.max(2, 4 * s)}px`;
+    el.style.height = `${36 * s}px`;
+    el.style.transform = `translate(${x - 2 * s}px, ${foot - 12 * s}px)`;
+  });
+
+  // the rope runs from hand to hand, at the height of the pulling hands
+  const k = Math.max(1, tg.teams[0].length);
+  const hy = foot - 91 * s;
+  const xl = cx + tg.o - tg.G - (k - 1) * tg.sp + 16.5 * s - 12 * s;
+  const xr = cx + tg.o + tg.G + (k - 1) * tg.sp - 16.5 * s + 12 * s;
+  const xm = cx + tg.o;
+  const sag = (tg.phase === "pull" || tg.phase === "end" ? 2 : 9) * s;
+  const d = `M${xl.toFixed(1)} ${hy.toFixed(1)} Q${xm.toFixed(1)} ${(hy + 2 * sag).toFixed(1)} ${xr.toFixed(1)} ${hy.toFixed(1)}`;
+  const rope = tg.els.rope;
+  rope.style.zIndex = Math.round(foot) + 1;
+  const set = (cls, w, extra) => {
+    const e = rope.querySelector(cls);
+    e.setAttribute("d", d);
+    e.setAttribute("stroke-width", (w * s).toFixed(2));
+    if (extra) e.setAttribute("stroke-dasharray", `${(2 * s).toFixed(1)} ${(5 * s).toFixed(1)}`);
+  };
+  set(".r0", 6.4); set(".r1", 4.8); set(".r2", 4.8, true);
+  const fy = hy + sag;
+  rope.querySelector(".fl").setAttribute("points",
+    `${(xm - 2.8 * s).toFixed(1)},${(fy - 1).toFixed(1)} ${(xm + 2.8 * s).toFixed(1)},${(fy - 1).toFixed(1)} ${xm.toFixed(1)},${(fy + 9 * s).toFixed(1)}`);
+}
+
+function cleanupTug() {
+  const tg = state.tug;
+  if (!tg) return;
+  clearTimeout(tg.bannerT);
+  Object.values(tg.els).forEach(e => e.remove());
+  document.getElementById("vbanner").classList.remove("show");
+  state.tug = null;
+}
+
+function endTug(now) {
+  if (!state.tug) return;
+  for (const w of walkers) {
+    if (w.tg) {
+      w.lane = phClamp(w.sl, 0, 1);
+      w.dir = Math.random() < 0.5 ? 1 : -1;
+    }
+    w.tg = null;
+    w.tgAt = false;
+    w.sready = false;
+    w.wp = null;
+    w.wait = 0;
+    w.stand = false;
+    w.el.classList.remove("tug", "tugfall", "cheer", "jer", "vsm", "vsm2", "standing");
+  }
+  cleanupTug();
+  state.nextHalay = Math.max(state.nextHalay, now + CONFIG.SIMIT_HALAY_DELAY);
+  if (state.nextSimit < now + 3000) state.nextSimit = now + 3000;
+}
+/* =====================  /TUG OF WAR  ===================== */
 
 function checkHalay(now) {
   if (!menu.classList.contains("gone")) return;
 
   // the simit scene always wins: no halay while it runs or is about to start
-  const simitBusy = !!state.simit || !!state.volley || !!state.photo || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
+  const simitBusy = !!state.simit || !!state.volley || !!state.photo || !!state.tug || now >= state.nextTug - CONFIG.SIMIT_GUARD_MS || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
 
   if (!state.halay && !simitBusy && now >= state.nextHalay && walkers.length) {
     state.halay = true;
@@ -3355,6 +3665,7 @@ function tick(now) {
   const dt = Math.min(0.1, (now - state.lastFrame) / 1000);
   state.lastFrame = now;
 
+  checkTug(now);
   checkSimit(now);
   checkPhoto(now);
   checkHalay(now);
@@ -3366,6 +3677,7 @@ function tick(now) {
   updateSimit(now, dt);
   updateVolley(now, dt);
   updatePhoto(now, dt);
+  updateTug(now, dt);
 
   const e0 = ensureEllipse(walkers.length || 1);
   const rotD = (Math.min(now, state.halayEnd) - state.halayStart) * CONFIG.HALAY_SPEED / 1000;
@@ -3387,7 +3699,7 @@ function tick(now) {
     const e = w.hk * w.hk * (3 - 2 * w.hk);
 
     // the simit scene takes over once any dance / halay pose has faded out
-    const sceneMode = state.simit && w.sm ? "simit" : (state.volley && w.vb ? "volley" : (state.photo && w.ph ? "photo" : null));
+    const sceneMode = state.tug && w.tg ? "tug" : state.simit && w.sm ? "simit" : (state.volley && w.vb ? "volley" : (state.photo && w.ph ? "photo" : null));
     const sceneOn = !!sceneMode && w.hk <= 0 && w.k < 0.03;
     if (sceneOn && !w.sready) {
       w.sready = true;
@@ -3400,7 +3712,8 @@ function tick(now) {
     let th = 0;
 
     if (sceneOn) {
-      if (sceneMode === "simit") stepScene(w, dt, now);
+      if (sceneMode === "tug") stepTug(w, dt, now);
+      else if (sceneMode === "simit") stepScene(w, dt, now);
       else if (sceneMode === "photo") stepPhoto(w, dt, now);
       else stepVolley(w, dt, now);
       L = w.sl;
@@ -3488,13 +3801,14 @@ function tick(now) {
   renderVendor(now);
   renderVolley(now);
   renderPhoto(now);
+  renderTug(now);
   requestAnimationFrame(tick);
 }
 
 let chatHide = null;
 
 function showChat() {
-  if (!menu.classList.contains("gone") || walkers.length < 2 || state.volley) return;
+  if (!menu.classList.contains("gone") || walkers.length < 2 || state.volley || state.tug) return;
 
   const a = pick(walkers);
   let b = pick(walkers);
@@ -3526,7 +3840,8 @@ function faceSvg(w) {
 }
 
 function startDance() {
-  if (!menu.classList.contains("gone") || state.halay || state.simit || state.volley || state.photo) return;
+  if (!menu.classList.contains("gone") || state.halay || state.simit || state.volley || state.photo || state.tug) return;
+  if (performance.now() >= state.nextTug - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextSimit - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextVolley - CONFIG.SIMIT_GUARD_MS) return;
@@ -3608,6 +3923,8 @@ function closeClass() {
   state.nextVolley = Infinity;
   cleanupPhoto();
   state.nextPhoto = Infinity;
+  cleanupTug();
+  state.nextTug = Infinity;
   state.current = null;
   menu.classList.remove("gone");
 }
