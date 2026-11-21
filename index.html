@@ -633,6 +633,20 @@
     50% { transform: translate(-3px, -2px); }
   }
 
+  /* ---------- Macuncu (candy-paste vendor) ---------- */
+  .vendor.macuncu .name { top: -20px; background: #7a1f2b; }
+  .vendor.macuncu .bubble { margin-bottom: 48px; }
+  .eat .mc { display: none; }
+  .walker.macuning .eat .sim { display: none; }
+  .walker.macuning[data-view="side"] .eat .mc { display: block; }
+  .vendor .mcg { display: none; }
+  .vendor.give .mcg { display: block; animation: mcLift 1.3s ease-in-out forwards; transform-origin: 60px 92px; }
+  .vendor.give .mcg .mcgb { animation: mcGrow 1.3s ease-out forwards; transform-box: fill-box; transform-origin: center; }
+  .vendor.give .mcg .mcsw { animation: mcSpin 0.45s linear infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes mcLift { 0% { transform: rotate(-14deg); } 35% { transform: rotate(10deg); } 70% { transform: rotate(-8deg); } 100% { transform: rotate(0deg); } }
+  @keyframes mcGrow { from { transform: scale(0.25); } to { transform: scale(1); } }
+  @keyframes mcSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
   /* ---------- Volleyball ---------- */
   #vcourt, #vnet, #vstand {
     position: absolute;
@@ -887,6 +901,18 @@ const SIMIT_EAT = [
 const SIMIT_THANKS = ["Teşekkürler!", "Eline sağlık usta!", "Sağ ol usta!"];
 const VENDOR_LINES = ["Sıcak simit!", "Sıra sıra, herkese yeter!", "Taze simit, taze!", "Tereyağlı simit!"];
 
+const MACUN_BUY = [
+  "Macun! Renk renk macun!", "Ben kırmızıdan alayım!", "Yeşil macun var mı?", "Çocukluğum aklıma geldi!",
+  "Bana turuncu olsun!", "Macun yemeyeli yıllar oldu!"
+];
+const MACUN_EAT = [
+  "Mmm, çok tatlı!", "Dilim boyandı mı?", "Yapış yapış oldu elim!", "Dünyanın en iyi macunu!",
+  "Çubuğu da yalarım!", "Bu rengi çok sevdim!"
+];
+const MACUN_THANKS = ["Teşekkürler!", "Eline sağlık usta!", "Sağ ol macuncu amca!"];
+const MACUN_LINES = ["Mesir macunu, şifa macunu!", "Renk renk macun!", "Sıra sıra, herkese bir çubuk!", "Gel gel gel, taze macun!"];
+const MACUN_COLORS = ["#d6203a", "#f7c01a", "#2f9e44", "#f07a12", "#e8d08a"];
+
 const EXCHANGES = [
   { q: "Ne zaman beni ziyaret edeceksin?", a: "En yakın zamanda ziyaret edeceğim arkadaşım" },
   { q: "Hafta sonu müsait misin? Hadi buluşalım!", a: "Hayır, müsait değilim; başkasıyla buluş." },
@@ -952,6 +978,10 @@ const CONFIG = {
   VOLLEY_BREAK_MS: 4500,    // pause between sets
   VOLLEY_FINAL_MS: 8000,    // celebration at the end
   VOLLEY_FAN_GAP: 120,      // fans stand at least this far (px) outside the court side lines
+  MACUN_AFTER_TUG_MS: 45000, // macuncu: exactly 45 s after the tug of war scene is over
+  MACUN_SERVE_MS: 500,       // pause between two macun wraps (the wrap itself takes MACUN_WRAP_MS)
+  MACUN_WRAP_MS: 1300,       // the vendor winds the macun onto a stick for each student
+  MACUN_ROAM: 60000,         // everyone roams eating their macun for 1 min
   TUG_AFTER_VOLLEY_MS: 60000, // tug of war: exactly 1 min after the volleyball match ends, however long the match was
   TUG_MIN_PLAYERS: 4,
   TUG_MAX_PER_TEAM: 8,
@@ -989,6 +1019,7 @@ const state = {
   nextHalay: Infinity,
   simit: null,
   nextSimit: Infinity,
+  nextMacun: Infinity,
   volley: null,
   nextVolley: Infinity,
   photo: null,
@@ -1419,6 +1450,14 @@ const SIMIT_RING =
   '<circle r="8.7" fill="none" stroke="#f3dfaa" stroke-width="1.2" stroke-dasharray="0.6 3.1" stroke-dashoffset="1.5" stroke-linecap="round"/>' +
   '<circle r="6.2" fill="none" stroke="#f3dfaa" stroke-width="1.2" stroke-dasharray="0.6 2.9" stroke-dashoffset="2" stroke-linecap="round"/>';
 
+// macun: a glossy swirl of coloured paste wound round a stick; the colour comes from --mc / --mcd
+const MACUN_BLOB =
+  '<circle r="6.6" style="fill:var(--mcd,#8f1427)"/>' +
+  '<circle r="5.9" style="fill:var(--mc,#d6203a)"/>' +
+  '<path d="M-5 -1.2 Q-1.5 -6 3.8 -3.4 Q7 0.4 3 4 Q-2 6.6 -4.8 2.6" fill="none" style="stroke:var(--mcd,#8f1427)" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<path d="M-2.6 0.4 Q0 -3 3 -0.4 Q1 2.8 -2.6 0.4Z" style="fill:var(--mcd,#8f1427)" opacity=".55"/>' +
+  '<ellipse cx="-2.4" cy="-2.8" rx="2" ry="1.05" fill="#fff" opacity=".7"/>';
+
 function eatSvg(shirt, skin) {
   const sleeve = shade(shirt, -0.12);
   const delay = (-rand(0, 0.9)).toFixed(2);
@@ -1428,6 +1467,10 @@ function eatSvg(shirt, skin) {
       <path d="M52 73 L61 49" stroke="${skin}" stroke-width="6" stroke-linecap="round" fill="none"/>
       <circle cx="61.5" cy="47" r="3.6" fill="${skin}"/>
       <g class="sim" transform="translate(64 40) scale(1.3)">${SIMIT_RING}</g>
+      <g class="mc">
+        <line x1="61" y1="49" x2="66.5" y2="32" stroke="#c9a05f" stroke-width="1.7" stroke-linecap="round"/>
+        <g class="mcb" transform="translate(64 40) scale(1.3)">${MACUN_BLOB}</g>
+      </g>
     </g>
   </svg>`;
 }
@@ -1446,14 +1489,74 @@ function vendorExtras() {
   </svg>`;
 }
 
-function makeVendor(fromLeft) {
+// the macuncu: red fez, embroidered black vest with gold trim, blue apron and his folding stall with a round
+// tray split into coloured sections (red, yellow, green, orange, pale gold) and the wooden-handled sticks
+function macuncuExtras() {
+  const cx = 45, cy = 105, rx = 26, ry = 6.2;
+  const pt = a => `${(cx + rx * Math.cos(a)).toFixed(2)},${(cy + ry * Math.sin(a)).toFixed(2)}`;
+  const N = MACUN_COLORS.length;
+  let wedges = "";
+  for (let i = 0; i < N; i++) {
+    const a0 = -Math.PI / 2 + (i / N) * Math.PI * 2;
+    const a1 = -Math.PI / 2 + ((i + 1) / N) * Math.PI * 2;
+    let pts = `${cx},${cy}`;
+    for (let k = 0; k <= 8; k++) pts += " " + pt(a0 + (a1 - a0) * k / 8);
+    wedges += `<polygon points="${pts}" fill="${MACUN_COLORS[i]}" stroke="#5a636b" stroke-width=".7" stroke-linejoin="round"/>`;
+    // glossy swirl of paste in each section
+    const mx = cx + 0.55 * rx * Math.cos((a0 + a1) / 2), my = cy + 0.55 * ry * Math.sin((a0 + a1) / 2);
+    wedges += `<ellipse cx="${mx.toFixed(1)}" cy="${(my - 0.4).toFixed(1)}" rx="3.2" ry=".9" fill="#fff" opacity=".35"/>`;
+  }
+  const stick = (x1, y1, x2, y2) =>
+    `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#7a5527" stroke-width="3.4" stroke-linecap="round"/>` +
+    `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#d9ac66" stroke-width="2.4" stroke-linecap="round"/>`;
+  const leg = (x1, x2) => `<line x1="${x1}" y1="112" x2="${x2}" y2="147.5" stroke="#6b4a22" stroke-width="3.6" stroke-linecap="round"/><line x1="${x1}" y1="112" x2="${x2}" y2="147.5" stroke="#c89a5b" stroke-width="2.4" stroke-linecap="round"/>`;
+  return `<svg class="mcx" viewBox="0 0 90 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+      style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none">
+    <!-- fez -->
+    <path d="M37.5 17.5 L39.6 4.6 Q46 2.6 53.8 4.6 L55.6 17.5 Q46.5 15.6 37.5 17.5Z" fill="#a8192a"/>
+    <path d="M39.6 4.6 Q46 2.6 53.8 4.6 Q46.5 6.8 39.6 4.6Z" fill="#7a0f1d"/>
+    <path d="M38 14.6 Q46.6 13 55.4 14.6" stroke="#6e0d1a" stroke-width="1" fill="none" opacity=".6"/>
+    <path d="M47 3.6 Q52 3 53.4 9.5" stroke="#15110f" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+    <circle cx="53.5" cy="10.4" r="1.2" fill="#15110f"/>
+    <!-- moustache -->
+    <path d="M51 36.2 Q55 34.8 58 36.6" stroke="#1b1512" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+    <!-- embroidered vest: only the front and back panels so the swinging arm stays visible -->
+    <path d="M36.4 49 Q36.6 46.6 40 46 L41.4 46 L41.2 88 L36.8 88 Q37.4 70 36.4 49Z" fill="#1d1a1f"/>
+    <path d="M49 46 L51.2 46 Q54.6 46.8 54.4 53 Q54 70 54.2 88 L49.2 88Z" fill="#1d1a1f"/>
+    <path d="M38.6 50 Q39.8 58 38.6 66 Q39.8 74 38.6 84 M51.6 50 Q52.8 58 51.6 66 Q52.8 74 51.6 84" stroke="#e0b24a" stroke-width="1" fill="none" stroke-linecap="round"/>
+    <path d="M41.4 46.6 L41.2 88 M49 46.6 L49.2 88" stroke="#e0b24a" stroke-width=".7" fill="none"/>
+    <!-- apron -->
+    <path d="M35.4 91 L55.8 91 L57 121 Q46 123 34.6 121Z" fill="#2c49b4"/>
+    <path d="M35.4 91 L55.8 91 L55.8 93.4 L35.4 93.4Z" fill="#1d3185"/>
+    <!-- macun being wound onto a stick for the student in front (shown while serving) -->
+    <g class="mcg">
+      <line x1="60" y1="92" x2="71" y2="64" stroke="#7a5527" stroke-width="3" stroke-linecap="round"/>
+      <line x1="60" y1="92" x2="71" y2="64" stroke="#d9ac66" stroke-width="2" stroke-linecap="round"/>
+      <g class="mcgb"><g transform="translate(70.5 63) scale(1.15)"><g class="mcsw">${MACUN_BLOB}</g></g></g>
+    </g>
+    <!-- folding wooden stall -->
+    ${leg(25, 14)}${leg(65, 76)}${leg(35, 56)}${leg(55, 34)}
+    <ellipse cx="45" cy="110.6" rx="33.5" ry="8.4" fill="#7a5527"/>
+    <ellipse cx="45" cy="108.2" rx="33.5" ry="8.4" fill="#c89a5b"/>
+    <ellipse cx="45" cy="106.2" rx="29" ry="7.1" fill="#8f98a0" stroke="#5a636b" stroke-width=".9"/>
+    <ellipse cx="45" cy="105.6" rx="27.4" ry="6.6" fill="#dfe4e8"/>
+    ${wedges}
+    ${stick(14.5, 101, 33, 105)}${stick(75.5, 101, 57, 105)}${stick(63, 113, 51, 108.6)}${stick(28, 113, 39, 108.8)}
+  </svg>`;
+}
+
+function makeVendor(fromLeft, kind = "simit") {
   const el = document.createElement("div");
-  el.className = "walker vendor";
+  const mac = kind === "macun";
+  el.className = "walker vendor" + (mac ? " macuncu" : "");
   el.dataset.view = "side";
-  el.innerHTML = `<div class="bubble"></div><div class="name">Simitçi</div><div class="flipper">${svg("#b5382f", "#e7c39a", "side", false, "#2a1d17")}${vendorExtras()}</div>`;
+  el.innerHTML = mac
+    ? `<div class="bubble"></div><div class="name">Macuncu</div><div class="flipper">${svg("#1f8a7e", "#d6a273", "side", false, "#1b1512")}${macuncuExtras()}</div>`
+    : `<div class="bubble"></div><div class="name">Simitçi</div><div class="flipper">${svg("#b5382f", "#e7c39a", "side", false, "#2a1d17")}${vendorExtras()}</div>`;
   scene.appendChild(el);
   return {
     el,
+    kind,
     flipper: el.querySelector(".flipper"),
     rings: [...el.querySelectorAll(".ts")],
     x: fromLeft ? -170 : innerWidth + 90,
@@ -1482,6 +1585,7 @@ function pickSaying(w) {
   if (state.tug) return pick(TUG_CHEERS);
   if (state.photo) return pick(PHOTO_SAYS);
   if (state.volley) return pick(VB_CHEERS);
+  if (state.simit && state.simit.kind === "macun") return pick(w.sm === "got" ? MACUN_EAT : MACUN_BUY);
   if (state.simit) return pick(w.sm === "got" ? SIMIT_EAT : SIMIT_BUY);
   return pick(SAYINGS);
 }
@@ -1514,12 +1618,22 @@ function joinSimit(w) {
   }
 }
 
-function giveSimit(w, now) {
+function giveSimit(w, now, color) {
   w.sm = "got";
   w.eatR = 1;
   w.wp = null;
   w.wait = now + rand(300, 900);
   w.el.classList.add("eating");
+  const mac = state.simit && state.simit.kind === "macun";
+  w.el.classList.toggle("macuning", !!mac);
+  if (mac) {
+    const c = color || pick(MACUN_COLORS);
+    w.el.style.setProperty("--mc", c);
+    w.el.style.setProperty("--mcd", shade(c, -0.32));
+    w.simEl = w.el.querySelector(".eat .mcb");
+  } else {
+    w.simEl = w.el.querySelector(".eat .sim");
+  }
   if (w.simEl) w.simEl.setAttribute("transform", "translate(64 40) scale(1.3)");
 }
 
@@ -1594,7 +1708,7 @@ function stepScene(w, dt, now) {
       w.wait = now + rand(700, 2800);
     }
     // the simit gets smaller during the roaming minute
-    const r = sm.phase === "roam" ? 1 - 0.88 * Math.min(1, (now - sm.roamStart) / CONFIG.SIMIT_ROAM) : 1;
+    const r = sm.phase === "roam" ? 1 - 0.88 * Math.min(1, (now - sm.roamStart) / (sm.kind === "macun" ? CONFIG.MACUN_ROAM : CONFIG.SIMIT_ROAM)) : 1;
     if (w.simEl && Math.abs(r - w.eatR) > 0.008) {
       w.eatR = r;
       w.simEl.setAttribute("transform", `translate(64 40) scale(${(r * 1.3).toFixed(3)})`);
@@ -1604,16 +1718,30 @@ function stepScene(w, dt, now) {
 
 function checkSimit(now) {
   if (!menu.classList.contains("gone")) return;
-  if (!state.simit && !state.volley && !state.photo && !state.tug && now >= state.nextSimit && now < state.nextTug - CONFIG.SIMIT_GUARD_MS) startSimit(now);
+  // a pending macuncu visit always takes priority over the simitçi
+  if (!state.simit && !state.volley && !state.photo && !state.tug && state.nextMacun === Infinity && now >= state.nextSimit && now < state.nextTug - CONFIG.SIMIT_GUARD_MS) startSimit(now);
 }
 
-function startSimit(now) {
+// the macuncu comes exactly 45 s after the tug of war has ended
+function checkMacun(now) {
+  if (!menu.classList.contains("gone")) return;
+  if (state.simit || state.volley || state.photo || state.tug || now < state.nextMacun) return;
+  startSimit(now, "macun");
+}
+
+function startSimit(now, kind = "simit") {
+  const mac = kind === "macun";
   if (!walkers.length) {
-    state.nextSimit = now + 5000;
+    if (mac) state.nextMacun = now + 5000;
+    else state.nextSimit = now + 5000;
     return;
   }
 
   state.nextSimit = now + CONFIG.SIMIT_EVERY;
+  if (mac) {
+    state.nextMacun = Infinity;
+    state.nextSimit = Infinity;   // no simitçi during or after the macuncu visit
+  }
 
   // the simit scene overrides halay and solo dances
   if (state.halay) {
@@ -1622,7 +1750,7 @@ function startSimit(now) {
   }
 
   const standX = innerWidth / 2 - 45;
-  const v = makeVendor(Math.random() < 0.5);
+  const v = makeVendor(Math.random() < 0.5, kind);
 
   for (const w of walkers) {
     w.dance = null;
@@ -1636,6 +1764,9 @@ function startSimit(now) {
   }
 
   state.simit = {
+    kind,
+    wrap: null,
+    colors: shuffle(MACUN_COLORS),
     phase: "enter",
     vendor: v,
     standX,
@@ -1652,7 +1783,7 @@ function startSimit(now) {
   };
   state.simit.queue.forEach((w, i) => { w.sside = i % 2 === 0 ? 1 : -1; });
 
-  vsay(v, "Simit! Taze simit!");
+  vsay(v, mac ? "Macun! Renk renk macun!" : "Simit! Taze simit!");
 }
 
 function updateSimit(now, dt) {
@@ -1686,17 +1817,40 @@ function updateSimit(now, dt) {
       v.mode = "stand";
       sm.phase = "sell";
       sm.nextServe = now + 600;
-      vsay(v, "Buyrun, sıcak simit!");
+      vsay(v, sm.kind === "macun" ? "Buyrun, taze macun!" : "Buyrun, sıcak simit!");
     } else {
       v.x += Math.sign(dx) * step;
     }
   } else if (v.mode === "stand") {
-    if (now >= sm.nextServe) {
+    const macun = sm.kind === "macun";
+    if (macun && sm.wrap) {
+      // the macuncu is winding the paste onto a stick for this student; when done, hand it over
+      const w = sm.wrap.w;
+      if (!walkers.includes(w) || w.sm !== "go") {
+        sm.wrap = null;
+        v.giveUntil = 0;
+      } else if (now >= sm.wrap.until) {
+        sm.queue.splice(sm.queue.indexOf(w), 1);
+        giveSimit(w, now, sm.wrap.color);
+        sm.served++;
+        sm.wrap = null;
+        sm.nextServe = now + CONFIG.MACUN_SERVE_MS;
+        if (Math.random() < 0.2) vsay(v, pick(MACUN_LINES), 2500);
+        if (Math.random() < 0.5) say(w, pick(MACUN_THANKS));
+      }
+    } else if (now >= sm.nextServe) {
       // only the first person of each side (next to the cart) can be served
       const headR = sm.queue.find(q => q.sside === 1);
       const headL = sm.queue.find(q => q.sside === -1);
       const w = [headR, headL].find(q => q && q.sready && q.atSlot);
-      if (w) {
+      if (w && macun) {
+        const color = sm.colors[sm.served % sm.colors.length];
+        v.el.style.setProperty("--mc", color);
+        v.el.style.setProperty("--mcd", shade(color, -0.32));
+        v.dir = w.x > v.x ? 1 : -1;
+        v.giveUntil = now + CONFIG.MACUN_WRAP_MS;
+        sm.wrap = { w, color, until: now + CONFIG.MACUN_WRAP_MS };
+      } else if (w) {
         sm.queue.splice(sm.queue.indexOf(w), 1);
         giveSimit(w, now);
         sm.served++;
@@ -1717,10 +1871,10 @@ function updateSimit(now, dt) {
     if (walkers.every(w => w.sm === "got")) {
       sm.phase = "roam";
       sm.roamStart = now;
-      sm.end = now + CONFIG.SIMIT_ROAM;
+      sm.end = now + (sm.kind === "macun" ? CONFIG.MACUN_ROAM : CONFIG.SIMIT_ROAM);
       v.mode = "out";
       v.outDir = v.x + 45 < innerWidth / 2 ? -1 : 1;
-      vsay(v, "Afiyet olsun çocuklar!", 3600);
+      vsay(v, sm.kind === "macun" ? "Afiyet olsun, şifa olsun çocuklar!" : "Afiyet olsun çocuklar!", 3600);
     }
   } else if (v.mode === "out") {
     v.dir = v.outDir;
@@ -1748,7 +1902,8 @@ function endSimit(now) {
     w.wp = null;
     w.wait = 0;
     w.stand = false;
-    w.el.classList.remove("eating", "standing");
+    w.el.classList.remove("eating", "standing", "macuning");
+    w.simEl = w.el.querySelector(".eat .sim");
   }
 
   state.simit = null;
@@ -3637,6 +3792,8 @@ function endTug(now) {
   cleanupTug();
   state.nextHalay = Math.max(state.nextHalay, now + CONFIG.SIMIT_HALAY_DELAY);
   if (state.nextSimit < now + 3000) state.nextSimit = now + 3000;
+  // the macuncu arrives exactly 45 s after the tug of war has finished
+  state.nextMacun = now + CONFIG.MACUN_AFTER_TUG_MS;
 }
 /* =====================  /TUG OF WAR  ===================== */
 
@@ -3644,7 +3801,7 @@ function checkHalay(now) {
   if (!menu.classList.contains("gone")) return;
 
   // the simit scene always wins: no halay while it runs or is about to start
-  const simitBusy = !!state.simit || !!state.volley || !!state.photo || !!state.tug || now >= state.nextTug - CONFIG.SIMIT_GUARD_MS || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
+  const simitBusy = !!state.simit || !!state.volley || !!state.photo || !!state.tug || now >= state.nextTug - CONFIG.SIMIT_GUARD_MS || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextMacun - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
 
   if (!state.halay && !simitBusy && now >= state.nextHalay && walkers.length) {
     state.halay = true;
@@ -3667,6 +3824,7 @@ function tick(now) {
 
   checkTug(now);
   checkSimit(now);
+  checkMacun(now);
   checkPhoto(now);
   checkHalay(now);
 
@@ -3844,6 +4002,7 @@ function startDance() {
   if (performance.now() >= state.nextTug - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextSimit - CONFIG.SIMIT_GUARD_MS) return;
+  if (performance.now() >= state.nextMacun - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextVolley - CONFIG.SIMIT_GUARD_MS) return;
 
   const free = walkers.filter(w => !w.dance);
@@ -3881,6 +4040,7 @@ function openClass(className) {
   menu.classList.add("gone");
   state.nextHalay = performance.now() + CONFIG.HALAY_EVERY;
   state.nextSimit = performance.now() + CONFIG.SIMIT_FIRST;
+  state.nextMacun = Infinity;
   state.nextVolley = performance.now() + CONFIG.VOLLEY_AT;
   state.nextPhoto = performance.now() + CONFIG.PHOTO_AT;
 
@@ -3913,6 +4073,7 @@ function closeClass() {
     state.simit = null;
   }
   state.nextSimit = Infinity;
+  state.nextMacun = Infinity;
   if (state.volley) {
     clearTimeout(state.volley.bannerT);
     Object.values(state.volley.els).forEach(e => e.remove());
