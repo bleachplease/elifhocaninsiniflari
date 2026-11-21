@@ -863,6 +863,14 @@
   .gcab.gfront { border-radius: 2px 2px 12px 12px; background: linear-gradient(rgba(255,255,255,0.28), rgba(0,0,0,0.12)), var(--c); border: 2px solid rgba(0,0,0,0.4); box-sizing: border-box; box-shadow: inset 0 5px 0 rgba(255,255,255,0.3), inset 0 -5px 0 rgba(0,0,0,0.18); }
   .gcab.gfront::before { content: ""; position: absolute; left: 4%; right: 4%; top: -34%; height: 34%; border-top: 3px solid #cfd4de; background: repeating-linear-gradient(90deg, #cfd4de 0 2px, transparent 2px 9px) 0 0 / 100% 100% no-repeat; opacity: 0.0; }
   .wgnd { background: linear-gradient(#7a7f8a, #50545e); border-radius: 4px; }
+  .wpl { background: linear-gradient(#cdb48a 0 28%, #9b8260 28% 100%); border-radius: 3px; border-top: 2px solid #e7d3a8; box-shadow: 0 4px 0 #5e4b33, 0 8px 8px rgba(0,0,0,0.3); box-sizing: border-box; }
+  .gcab.gfront { transition: opacity 0.35s; }
+  /* riding a carousel horse: side profile, one leg over the flank (the far leg stays behind the horse), both hands on the horse's neck */
+  .walker.tseat .leg { animation: none; transform: rotate(-14deg); }
+  .walker.tseat .leg.b { display: none; }
+  .walker.tseat .arm { animation: none; transform: rotate(-50deg); }
+  .walker.tseat .arm.arm2 { display: block; animation: none; transform: rotate(-38deg); }
+  .walker.tride .name { display: block !important; top: calc(-11px - var(--ny, 0px)); font-size: clamp(7px, calc(var(--nk, 0.4) * 24px), 11px); padding: 0 clamp(4px, calc(var(--nk, 0.4) * 14px), 7px); line-height: 1.35; box-shadow: 0 1px 3px rgba(0,0,0,0.35); }
   .cplat { border-radius: 50%; background: radial-gradient(ellipse at 50% 45%, #f2d9a4 0%, #c99a62 42%, #7a4c2c 100%); border: 5px solid #ffd86b; box-sizing: border-box; outline: 2px solid rgba(90, 50, 20, 0.6); }
   .cdrum { background: linear-gradient(90deg, rgba(0,0,0,0.35), rgba(255,255,255,0.22) 30%, rgba(0,0,0,0.0) 55%, rgba(0,0,0,0.38)),
       repeating-linear-gradient(90deg, #f1e3b5 0 7%, #c0392b 7% 14%), #8d1b27; border-radius: 4px 4px 2px 2px; border-top: 5px solid #ffd86b; border-bottom: 5px solid #b88a3a; box-sizing: border-box; }
@@ -4129,9 +4137,10 @@ function startFair(now) {
   mk("tfbg", stalls + bulbs);
   ft.wGround = mk("tfx wgnd");
   ft.wBase = mk("tfx", '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;overflow:visible"><g fill="none" stroke-linecap="round" vector-effect="non-scaling-stroke"><path d="M44 0 L2 100 M56 0 L98 100" stroke="#5d6370" stroke-width="3" vector-effect="non-scaling-stroke"/><path d="M50 0 L10 100 M50 0 L90 100" stroke="#7b8190" stroke-width="5" vector-effect="non-scaling-stroke"/><path d="M50 0 L5 100 M50 0 L95 100" stroke="#a4abba" stroke-width="1.6" vector-effect="non-scaling-stroke"/><path d="M36 35 L64 35 M26 62 L74 62 M36 35 L74 62 M64 35 L26 62 M19 86 L81 86" stroke="#8a91a0" stroke-width="2" vector-effect="non-scaling-stroke"/></g><rect x="3" y="97" width="16" height="3" fill="#444b57"/><rect x="81" y="97" width="16" height="3" fill="#444b57"/></svg>');
+  ft.wPlat = mk("tfx wpl");
   ft.wRot = mk("tfx", wheelSvg());
   for (let i = 0; i < NG; i++) {
-    const g = { back: mk("gcab", '<i class="gh"></i><i class="groof"></i><i class="gbody"></i>'), front: mk("gcab gfront"), riders: [], pph: 0, loaded: now - 25000 };
+    const g = { back: mk("gcab", '<i class="gh"></i><i class="groof"></i><i class="gbody"></i>'), front: mk("gcab gfront"), riders: [], slots: [null, null, null, null], out: [], inList: [], loaded: now - 25000 };
     [g.back, g.front].forEach(e => { e.style.setProperty("--c", GOND_COLORS[i]); e.style.setProperty("--cd", shade(GOND_COLORS[i], -0.3)); });
     ft.gond.push(g);
   }
@@ -4141,7 +4150,7 @@ function startFair(now) {
   ft.cCan = mk("tfx", `<svg viewBox="0 0 200 56" preserveAspectRatio="none" style="width:100%;height:100%;overflow:visible">${wedge}<rect x="0" y="36" width="200" height="4" fill="#ffd86b"/><path d="M60 24 L100 5 L140 24Z" fill="#b01f2c" opacity=".35"/><polygon points="100,6 66,22 134,22" fill="none" stroke="#ffd86b" stroke-width="1.6"/>${cbulb}<circle cx="100" cy="5" r="4.2" fill="#ffd86b"/><path d="M100 5 L100 -15 L116 -10 L100 -5" fill="#d62f2f"/></svg>`);
   for (let k = 0; k < 8; k++) ft.poles.push(mk("tfx cpolel"));
   for (let k = 0; k < 8; k++) ft.horses.push(mk("chorse", horseSvg(HORSE_COLORS[k % 5])));
-  ft.car = { phase: "run", until: now + rand(30000, 40000), spd: 0.9, slots: Array(8).fill(null), loadAt: 0 };
+  ft.car = { phase: "run", until: now + rand(14000, 30000), spd: 0.62, slots: Array(8).fill(null), out: [], inList: [], nextAct: 0, t1: 0, t2: 0 };
 
   walkers.forEach(w => {
     w.el.style.display = ""; w.el.classList.remove("tnoname", "standing");
@@ -4152,17 +4161,17 @@ function startFair(now) {
   ft.reserve = Math.min(Math.max(10, Math.round(N * 0.32)), Math.round(N * 0.5));
   const nc = Math.min(6 + Math.floor(Math.random() * 3), Math.floor(N * 0.25));
   const slots = shuffle([0, 1, 2, 3, 4, 5, 6, 7]);
-  for (let i = 0; i < nc; i++) { const w = pool.pop(); rideMode(w, "cride"); ft.car.slots[slots[i]] = w; }
+  for (let i = 0; i < nc; i++) { const w = pool.pop(); rideMode(w, "cride"); w.tp.k = slots[i]; ft.car.slots[slots[i]] = w; }
   ft.gond.forEach(g => {
-    const n = Math.min(2 + Math.floor(Math.random() * 3), pool.length - ft.reserve);
-    for (let i = 0; i < n; i++) { const w = pool.pop(); rideMode(w, "gride"); g.riders.push(w); }
+    const n = Math.max(0, Math.min(2 + Math.floor(Math.random() * 3), pool.length - ft.reserve));
+    for (let i = 0; i < n; i++) { const w = pool.pop(); rideMode(w, "gride"); const slot = SLOT_ORDER[i]; w.tp.g = g; w.tp.slot = slot; g.slots[slot] = w; g.riders.push(w); }
+    g.loaded = now - rand(0, 50000);   // riders have been on for different lengths of time
   });
-  const nQc = Math.ceil(pool.length * 0.6);
-  pool.forEach((w, i) => { const key = i < nQc ? "c" : "w"; w.tp = { m: "cq", q: key }; w.el.classList.add("tsmall"); qArr(ft, key).push(w); });
-  ft.rot = Math.random() * TAU;
-  ft.gond.forEach(g => { g.pph = 99; });
+  const nQw = Math.ceil(pool.length * 0.6);
+  pool.forEach((w, i) => { const key = i < nQw ? "w" : "c"; w.tp = { m: "cq", q: key }; w.el.classList.add("tsmall"); qArr(ft, key).push(w); });
+  ft.rot = Math.PI / 2;   // gondola 0 stands at the loading platform
+  ft.wh = { st: "load", sub: "unload", t: 0, t0: now, t1: now, g: ft.gond[0], want: 3, rotA: ft.rot, nextAct: now };
   updateFair(now, 0);
-  ft.gond.forEach((g, i) => { g.pph = ((ft.rot + i * TAU / NG - Math.PI / 2) % TAU + TAU) % TAU; });
   walkers.forEach(w => { if (w.tp.m === "cq") { const s = fairSlot(w); tPos(w, s.x, s.y); } });
   tr.phase = "fair"; tr.fairT0 = now;   // the 5 minutes start the moment the black screen lifts
   curtainOff();
@@ -4172,78 +4181,206 @@ function rideMode(w, m) {
   w.el.classList.remove("tsmall", "selfie"); w.el.classList.add("tnoname");   // names are hidden on the rides
 }
 const qArr = (ft, k) => k === "w" ? ft.qw : ft.qc;
+// the wheel line moves ~3 people per stop, the carousel ~8 per ride: the wheel line may be about twice as long
 function chooseQ(ft) {
-  if (ft.qc.length < 7) return "c";
-  if (ft.qw.length < 4) return "w";
-  return Math.random() < 0.5 ? "c" : "w";
+  if (Math.random() < 0.12) return Math.random() < 0.5 ? "c" : "w";
+  return ft.qw.length <= 2 * ft.qc.length ? "w" : "c";
 }
-// single-file line right next to its own ride; the line is squeezed so the two queues never run into each other
-function fairSlot(w) {
-  const ft = state.trip.ft, key = w.tp.q || "c", arr = qArr(ft, key), k = Math.max(0, arr.indexOf(w)), n = Math.max(1, arr.length);
-  const wheel = key === "w";
-  // wheel line starts right under the wheel's loading point; carousel line starts right at the platform's front edge
-  const sx = wheel ? ft.wcx + 0.45 * ft.R : ft.ccx - 0.95 * ft.rx;
-  const x0w = ft.wcx + 0.45 * ft.R, x0c = ft.ccx - 0.95 * ft.rx;
-  const nw = Math.max(1, ft.qw.length), nc = Math.max(1, ft.qc.length);
-  const total = Math.max(60, x0c - x0w - 30);   // room between the two rides, shared by the two lines by head count
-  const span = total * (wheel ? nw : nc) / (nw + nc);
-  const sp = Math.max(22, Math.min(36, span / n));
-  // one single line: runs sideways along the ground in front of its ride, a hair of depth per person so nobody overlaps
-  const y = wheel ? ft.baseY + 20 + k * 0.6 : ft.cby + 1.12 * ft.ry + 16 * ft.cs + k * 0.6;
-  return { x: sx + (wheel ? 1 : -1) * k * sp, y };
+const SLOT_ORDER = [1, 2, 0, 3];                       // gondola seats, filled from the middle outwards
+const laneS = w => state.base * (0.75 + 0.25 * w.sl);  // normal walking size at the current depth
+const laneAt = y => state.base * (0.75 + 0.25 * tL(y));
+const smooth = t => t * t * (3 - 2 * t);
+const canRide = (w, now) => !!(w.tp && (w.tp.m === "cq" || w.tp.m === "off") && !w.tp.sf && !(w.fcool > now));
+const unq = (ft, w) => { [ft.qw, ft.qc].forEach(a => { const i = a.indexOf(w); if (i >= 0) a.splice(i, 1); }); };
+// the people who have waited longest and are already standing in line go first
+function pickRiders(arr, n, now) {
+  const ok = arr.filter(w => canRide(w, now));
+  ok.sort((a, b) => (b.tp.arr ? 1 : 0) - (a.tp.arr ? 1 : 0));
+  return ok.slice(0, n);
 }
+function stealTail(arr, n, now) { return arr.slice().reverse().filter(w => canRide(w, now) && w.tp.arr).slice(0, n); }
+
+// a short "step" (up into a cabin / onto a horse, or back down): position, size and layer change smoothly
+function tHopStart(w, x1, y1, s1, z0, z1, dur, arc, zt) {
+  const cx = w.x + 45, cy = tY(w.sl);
+  w.tp.hop = { t: 0, dur, x0: cx, y0: cy, s0: w.tsc || laneS(w), x1, y1, s1, z0, z1, zt, arc };
+}
+function tHop(w, dt) {
+  const h = w.tp.hop; h.t = Math.min(1, h.t + dt / h.dur);
+  const e = smooth(h.t);
+  tPos(w, h.x0 + (h.x1 - h.x0) * e, h.y0 + (h.y1 - h.y0) * e - Math.sin(Math.PI * h.t) * h.arc);
+  w.tsc = h.s0 + (h.s1 - h.s0) * e; w.tz = h.t < h.zt ? h.z0 : h.z1;
+  w.tview = "front"; setStand(w, false);
+  return h.t >= 1;
+}
+
+/* --- geometry helpers --- */
+const gSeat = (ft, g, slot) => ({ x: g.x + (slot - 1.5) * 20 * ft.kg, y: g.y + 64 * ft.kg, s: 0.26 * ft.kg, z: ft.zr + 2 });
+const gDoor = (ft, g, slot) => ({ x: g.x + (slot - 1.5) * 26 * ft.kg, y: ft.baseY + 8 + (slot % 2) * 3 });
+const cStand = (ft, k) => { const bb = ft.rot2 + k * TAU / 8; return { x: ft.ccx + 0.72 * ft.rx * Math.cos(bb), y: ft.cby + 0.75 * ft.ry * Math.sin(bb) + 0.2 * ft.ry }; };
+// riders sit sideways on the saddle (hips on the horse's back), drawn in front of the horse
+const cSeat = (ft, k) => { const p = ft.horses[k]._p; return { x: p.x + (p.front ? 2.7 : -2.7) * ft.hs, y: p.y + 14 * ft.hs, s: 0.42 * ft.hs, z: p.z + 1 }; };
+const cEntry = ft => ({ x: ft.ccx - 0.5 * ft.rx, y: ft.cby + 1.06 * ft.ry });
+// one-way flow: wheel riders step out on the left, carousel riders leave over the right edge, then walk round the front to the line
+const exitPtsW = ft => [{ x: ft.wcx - 66 * ft.kg, y: ft.baseY + 12 }, { x: ft.wcx - 66 * ft.kg, y: ft.baseY + 0.13 * innerHeight }];
+const exitPtsC = ft => [{ x: ft.ccx + 0.55 * ft.rx, y: ft.cby + 1.12 * ft.ry }, { x: ft.ccx + 0.6 * ft.rx, y: ft.cby + 1.12 * ft.ry + 0.1 * innerHeight }];
+
 function flashSelfie() {
   const fl = document.getElementById("flash");
   fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
 }
+// single-file line next to its own ride (wraps into a second row when it gets long); the two lines share the space between the rides
+function fairSlot(w) {
+  const ft = state.trip.ft, key = w.tp.q || "c", arr = qArr(ft, key), k = Math.max(0, arr.indexOf(w));
+  const wheel = key === "w";
+  const x0w = ft.wcx + 80 * ft.kg, x0c = ft.ccx - 0.62 * ft.rx;
+  const nw = Math.max(1, ft.qw.length), nc = Math.max(1, ft.qc.length);
+  const share = Math.max(60, x0c - x0w - 30) * (wheel ? nw : nc) / (nw + nc);
+  const perRow = Math.max(4, Math.floor(share / 28)), sp = Math.max(26, Math.min(38, share / perRow));
+  const row = Math.floor(k / perRow), col = k % perRow;
+  const y = (wheel ? ft.baseY + 0.065 * innerHeight : ft.cby + 1.12 * ft.ry + 0.045 * innerHeight) + row * 0.04 * innerHeight + col * 0.6;
+  return { x: (wheel ? x0w : x0c) + (wheel ? 1 : -1) * col * sp, y };
+}
+
+/* --- boarding / leaving the Ferris wheel (stop-and-go: the wheel pauses for every gondola) --- */
+function startBoardG(ft, g, w) {
+  unq(ft, w);
+  const slot = SLOT_ORDER.find(s => !g.slots[s]);
+  w.tp = { m: "gboard", g, slot, st: 0 };
+  w.tsc = laneS(w); w.tz = null; w.el.classList.remove("tsmall", "selfie");
+  g.slots[slot] = w; g.riders.push(w);
+}
+function leaveG(ft, g, w, now) {
+  const slot = w.tp.slot, seat = gSeat(ft, g, slot), d = gDoor(ft, g, slot), key = chooseQ(ft);
+  g.slots[slot] = null; g.riders = g.riders.filter(r => r !== w);
+  w.tp = { m: "gout", q: key, pts: exitPtsW(ft), from: g };
+  w.fcool = now + 12000;
+  tHopStart(w, d.x, d.y, laneAt(d.y), seat.z, Math.round(d.y), 0.6, 8 * ft.kg, 0.35);
+  qArr(ft, key).push(w);
+}
+function wheelLoad(ft, now) {
+  const wh = ft.wh, g = wh.g, step = TAU / NG;
+  if (wh.st === "turn") {
+    wh.t = Math.min(1, wh.t + (ft.dtNow || 0) / (wh.mode === "cont" ? 3.6 : wh.mode === "skip" ? 1.6 : 2.1));
+    ft.rot = wh.rotA + step * (wh.mode === "cont" ? wh.t : smooth(wh.t));
+    if (wh.t >= 1) { ft.rot = wh.rotA + step; wh.st = "load"; wh.sub = "unload"; wh.t0 = now; wh.g = ft.gond[((Math.round((Math.PI / 2 - ft.rot) / step) % NG) + NG) % NG]; }
+    return;
+  }
+  g.riders = g.riders.filter(w => walkers.includes(w));
+  g.slots = g.slots.map(w => w && walkers.includes(w) ? w : null);
+  g.inList = g.inList.filter(w => walkers.includes(w));
+  if (wh.sub === "unload") {
+    // riders get off after one full turn
+    // somebody is waiting for the wheel (or the carousel line is long enough to send people over)
+    const waiting = pickRiders(ft.qw, 1, now).length > 0 || (ft.qc.length > 4 && stealTail(ft.qc, 1, now).length > 0);
+    wh.waiting = waiting;
+    g.out = waiting && g.riders.length && now - g.loaded > 28000 ? g.riders.slice().sort((a, b) => a.tp.slot - b.tp.slot) : [];
+    wh.want = 2 + Math.floor(Math.random() * 3); wh.nextAct = now + 600; wh.sub = "unloading"; wh.mode = "smooth";
+    if (g.riders.length && !g.out.length) { wh.mode = waiting ? "skip" : "cont"; wh.sub = "go"; wh.t0 = now - 900; }   // occupied cabin: move on (nonstop if nobody is waiting)   // occupied cabin: the wheel just moves on to the next one
+  } else if (wh.sub === "unloading") {
+    if (g.out.length && now >= wh.nextAct) { leaveG(ft, g, g.out.shift(), now); wh.nextAct = now + 380; }
+    if (!g.out.length && !walkers.some(w => w.tp && w.tp.m === "gout" && w.tp.from === g)) { wh.sub = "pick"; wh.t1 = now; }
+  } else if (wh.sub === "pick") {
+    if (now - wh.t1 < 450) return;
+    if (g.riders.length) { wh.sub = "go"; wh.mode = "skip"; return; }          // still occupied: nobody else gets on
+    // an empty cabin: whoever is waiting gets on (2-4 at a time); if the wheel line is empty, people from a long carousel line come over
+    let pool = pickRiders(ft.qw, wh.want, now);
+    if (pool.length < wh.want && ft.qc.length > 4) pool = pool.concat(stealTail(ft.qc, wh.want - pool.length, now));
+    if (!pool.length) { wh.sub = "go"; wh.mode = "cont"; wh.t0 = now - 900; return; }   // nobody waiting: keep turning
+    g.inList = pool; wh.nextAct = now; wh.sub = "boarding"; wh.t1 = now;
+  } else if (wh.sub === "boarding") {
+    if (g.inList.length && now >= wh.nextAct) { startBoardG(ft, g, g.inList.shift()); wh.nextAct = now + 750; }
+    const seated = g.riders.every(w => w.tp && w.tp.m === "gride");
+    if (!g.inList.length && seated) { wh.sub = "close"; wh.t1 = now; g.loaded = now; }
+    else if (now - wh.t1 > 30000) {                           // someone got stuck: send them back to the line
+      g.inList.concat(g.riders.filter(w => w.tp.m !== "gride")).forEach(w => { g.slots = g.slots.map(s => s === w ? null : s); g.riders = g.riders.filter(r => r !== w); w.tp = { m: "cq", q: "w" }; w.tsc = null; w.tz = null; ft.qw.push(w); });
+      g.inList = [];
+    }
+  } else if (wh.sub === "close") {
+    if (now - wh.t1 > 700) wh.sub = "go";
+  } else if (wh.sub === "go") {
+    if (now - wh.t0 > 900) { wh.st = "turn"; wh.t = 0; wh.rotA = ft.rot; }
+  }
+}
+
+/* --- boarding / leaving the carousel (it stops completely, riders walk up onto the platform and climb on) --- */
+function leaveC(ft, k, w, now) {
+  const st = cStand(ft, k), seat = cSeat(ft, k), key = chooseQ(ft);
+  ft.car.slots[k] = null;
+  w.tp = { m: "cout", q: key, pts: exitPtsC(ft), k };
+  w.fcool = now + 12000;
+  tHopStart(w, st.x, st.y, laneAt(st.y), seat.z, Math.round(st.y), 0.65, 10 * ft.hs, 0.35);
+  qArr(ft, key).push(w);
+}
+function carouselStep(ft, now, dt) {
+  const car = ft.car;
+  car.slots = car.slots.map(w => w && walkers.includes(w) ? w : null);
+  if (car.phase === "run") {
+    if (now >= car.until) {
+      const waiting = pickRiders(ft.qc, 1, now).length > 0 || (ft.qw.length > 6 && stealTail(ft.qw, 1, now).length > 0);
+      if (waiting) car.phase = "stop"; else car.until = now + 2000;   // nobody in line: keep spinning
+    }
+  } else if (car.phase === "stop") {
+    car.spd = Math.max(0, car.spd - dt * 0.2);
+    if (car.spd <= 0) {
+      car.out = car.slots.map((w, k) => w ? k : -1).filter(k => k >= 0).sort((a, b) => Math.sin(ft.rot2 + b * TAU / 8) - Math.sin(ft.rot2 + a * TAU / 8));
+      car.nextAct = now + 700; car.phase = "unload";
+    }
+  } else if (car.phase === "unload") {
+    if (car.out.length && now >= car.nextAct) { const k = car.out.shift(); if (car.slots[k]) leaveC(ft, k, car.slots[k], now); car.nextAct = now + 330; }
+    if (!car.out.length && !walkers.some(w => w.tp && w.tp.m === "cout")) { car.phase = "pick"; car.t1 = now; }
+  } else if (car.phase === "pick") {
+    if (now - car.t1 < 1200) return;
+    // every empty horse is offered to someone who is waiting
+    const free = [0, 1, 2, 3, 4, 5, 6, 7].filter(k => !car.slots[k]);
+    let pool = pickRiders(ft.qc, free.length, now);
+    if (pool.length < free.length && ft.qw.length > 6) pool = pool.concat(stealTail(ft.qw, Math.min(free.length - pool.length, ft.qw.length - 6), now));
+    car.inList = pool.map((w, i) => ({ w, k: shuffle(free)[0] }));
+    const ks = shuffle(free); car.inList.forEach((e, i) => { e.k = ks[i]; });
+    car.nextAct = now; car.t2 = now; car.phase = "board";
+  } else if (car.phase === "board") {
+    car.inList = car.inList.filter(e => walkers.includes(e.w));
+    if (car.inList.length && now >= car.nextAct) {
+      const e = car.inList.shift(); unq(ft, e.w);
+      e.w.tp = { m: "cboard", k: e.k, st: 0 }; e.w.tsc = laneS(e.w); e.w.tz = null; e.w.el.classList.remove("tsmall", "selfie");
+      car.slots[e.k] = e.w; car.nextAct = now + 500;
+    }
+    const seated = car.slots.every(w => !w || (w.tp && w.tp.m === "cride"));
+    if (!car.inList.length && seated) { if (now - car.t2 > 900) car.phase = "start"; }
+    else if (now - car.t2 > 30000) {
+      car.slots.forEach((w, k) => { if (w && w.tp.m !== "cride") { car.slots[k] = null; w.tp = { m: "cq", q: "c" }; w.tsc = null; w.tz = null; ft.qc.push(w); } });
+      car.inList = [];
+    }
+  } else if (car.phase === "start") {
+    car.spd = Math.min(0.62, car.spd + dt * 0.25);
+    if (car.spd >= 0.62) { car.phase = "run"; car.until = now + rand(30000, 40000); }
+  }
+}
+
 function updateFair(now, dt) {
   const ft = state.trip.ft, W = innerWidth, H = innerHeight;
-  const R = Math.min(0.24 * H, 0.17 * W), kk = R / 200, wcx = 0.26 * W, baseY = tY(0.12), hubY = baseY - R - 0.02 * H;
-  const rx = Math.min(0.14 * W, 0.22 * H), ry = rx * 0.26, ccx = 0.73 * W, cby = tY(0.2), cs = rx / 150, zr = Math.round(tY(0.1));
-  Object.assign(ft, { R, kk, wcx, baseY, hubY, rx, ry, ccx, cby, cs, zr });
+  // both rides stand in the foreground: big, and low on the screen, right behind the queues
+  const R = Math.min(0.285 * H, 0.185 * W), kk = R / 200, kg = kk * 1.2, wcx = 0.265 * W, baseY = tY(0.5);
+  const hubY = baseY - R - 70 * kg + 4;     // the lowest gondola's floor sits on the loading platform
+  const rx = Math.min(0.155 * W, 0.27 * H), ry = rx * 0.26, ccx = 0.745 * W, cby = tY(0.46), cs = rx / 150, hs = cs * 1.15, zr = Math.round(tY(0.1));
+  Object.assign(ft, { R, kk, kg, wcx, baseY, hubY, rx, ry, ccx, cby, cs, hs, zr, dtNow: dt });
   ft.qw = ft.qw.filter(w => walkers.includes(w)); ft.qc = ft.qc.filter(w => walkers.includes(w));
 
-  // ferris wheel: 8 gondolas; each time one passes the bottom its riders may get off and a new group of 2-4 boards
-  ft.rot += dt * TAU / 52;
+  // ferris wheel
+  wheelLoad(ft, now);
   ft.gond.forEach((g, i) => {
-    g.riders = g.riders.filter(w => walkers.includes(w));
     const a = ft.rot + i * TAU / NG;
     g.x = wcx + R * Math.cos(a); g.y = hubY + R * Math.sin(a);
-    const n = g.riders.length;
-    g.riders.forEach((w, j) => { w.tp.seat = { x: g.x + (j - (n - 1) / 2) * 20 * kk, y: g.y + 64 * kk, s: 0.25 * kk, z: zr + 2 }; });
-    const ph = ((a - Math.PI / 2) % TAU + TAU) % TAU;
-    if (dt > 0 && ph < g.pph) swapGond(g, now);
-    g.pph = ph;
+    g.open = ft.wh.st === "load" && ft.wh.g === g && ["unloading", "boarding"].includes(ft.wh.sub);   // doorway open while people step in/out
   });
 
-  // carousel: rides ~35 s, slows down, riders get off, 6-8 new ones board from the carousel queue
-  const car = ft.car;
-  if (car.phase === "run" && now >= car.until) car.phase = "stop";
-  else if (car.phase === "stop") {
-    car.spd = Math.max(0, car.spd - dt * 0.25);
-    if (car.spd <= 0) {
-      car.slots.forEach(w => { if (w && w.tp) dismount(w, chooseQ(ft)); });
-      car.slots.fill(null); car.phase = "load"; car.loadAt = now + 1500;
-    }
-  } else if (car.phase === "load" && now >= car.loadAt) {
-    const ready = ft.qc.filter(w => w.tp.m === "cq" && !w.tp.sf);
-    const n = Math.min(6 + Math.floor(Math.random() * 3), ready.length);
-    shuffle([0, 1, 2, 3, 4, 5, 6, 7]).slice(0, n).forEach((s, i) => {
-      const w = ready[i]; ft.qc.splice(ft.qc.indexOf(w), 1); rideMode(w, "cboard"); car.slots[s] = w;
-    });
-    car.phase = "start";
-  } else if (car.phase === "start") {
-    car.spd = Math.min(0.9, car.spd + dt * 0.3);
-    if (car.spd >= 0.9) { car.phase = "run"; car.until = now + rand(30000, 40000); }
-  }
-  ft.rot2 += car.spd * dt;
+  // carousel
+  carouselStep(ft, now, dt);
+  ft.rot2 += ft.car.spd * dt;
   for (let k = 0; k < 8; k++) {
     const bb = ft.rot2 + k * TAU / 8, front = Math.sin(bb) > 0, bob = Math.sin(ft.rot2 * 5 + k) * 2 * cs;
     const x = ccx + 0.88 * rx * Math.cos(bb), y = cby + 0.9 * ry * Math.sin(bb) + bob;
     ft.horses[k]._p = { x, y, z: zr + (front ? 6 : 1), front };
-    const w = car.slots[k];
-    if (w && !walkers.includes(w)) car.slots[k] = null;
-    else if (w) w.tp.seat = { x, y: y + 14 * cs, s: 0.3 * cs, z: zr + (front ? 7 : 2) };
   }
 
   // selfies are very rare: roughly every 2-3.5 min two people in one queue pull out their phones
@@ -4264,38 +4401,63 @@ function updateFair(now, dt) {
     return true;
   });
 }
-function dismount(w, key) {
-  const ft = state.trip.ft;
-  w.tp = { m: "off", q: key }; w.el.classList.remove("tnoname"); w.el.classList.add("tsmall"); w.tz = null; w.tview = null;
-  qArr(ft, key).push(w);
-}
-function swapGond(g, now) {
-  const ft = state.trip.ft;
-  if (g.riders.length && now - g.loaded > 20000) { g.riders.forEach(w => dismount(w, chooseQ(ft))); g.riders = []; }
-  if (g.riders.length) return;
-  const ready = ft.qw.filter(w => w.tp.m === "cq" && !w.tp.sf);
-  const n = Math.min(2 + Math.floor(Math.random() * 3), ready.length);
-  if (n < 2) return;
-  for (let i = 0; i < n; i++) { const w = ready[i]; ft.qw.splice(ft.qw.indexOf(w), 1); rideMode(w, "gboard"); g.riders.push(w); }
-  g.loaded = now;
-}
+const ft0 = w => state.trip.ft;
 function stepFairWalker(w, dt, now) {
-  const p = w.tp, sp = 140 * state.base * (0.75 + 0.25 * w.sl);
-  if (p.m === "cq" || p.m === "off") {
-    const s = fairSlot(w), a = tWalk(w, dt, s.x, s.y, sp);
-    tNorm(w, dt);
-    p.arr = a;
-    if (a) { w.tview = "front"; if (p.m === "off") p.m = "cq"; }
-    if (a && !w.speaking && now > w.nextTalk) { w.nextTalk = now + rand(6000, 14000); say(w, pick(FAIR_SAYS)); }
-  } else if ((p.m === "gboard" || p.m === "cboard") && p.seat) {
-    const f = 1 - Math.exp(-7 * dt), cx = w.x + 45, cy = tY(w.sl);
-    tPos(w, cx + (p.seat.x - cx) * f, cy + (p.seat.y - cy) * f);
-    w.tsc += (p.seat.s - w.tsc) * f; w.tz = 8000; w.tview = "front"; setStand(w, false);
-    if (Math.hypot(p.seat.x - cx, p.seat.y - cy) < 5) p.m = p.m === "gboard" ? "gride" : "cride";
-  } else if (p.seat) {
-    tPos(w, p.seat.x, p.seat.y); w.tsc = p.seat.s; w.tz = p.seat.z; w.tview = "front"; setStand(w, true);
+  stepFairWalker0(w, dt, now);
+  const p = w.tp; if (!p) return;
+  // riders keep their name tag: it shrinks/grows with the student and follows every step, hop and turn of the ride
+  const riding = p.m === "gride" || p.m === "cride" || p.m === "gout" || p.m === "cout" || !!p.hop;
+  w.el.classList.toggle("tride", riding);
+  const seated = p.m === "cride" || (p.m === "cboard" && !!p.hop) || (p.m === "cout" && !!p.hop && p.hop.t < 0.5);
+  w.el.classList.toggle("tseat", seated);
+  if (seated) { w.tview = null; w.dir = ft0(w).horses[p.k]._p.front ? -1 : 1; }   // side profile, turns with the horse
+  if (riding) {
+    w.el.style.setProperty("--nk", (w.tsc || 0.4).toFixed(3));
+    w.el.style.setProperty("--ny", (((p.slot != null ? p.slot : (p.k || 0)) % 2) * 10) + "px");
   }
 }
+function stepFairWalker0(w, dt, now) {
+  const p = w.tp, ft = state.trip.ft, sp = 140 * state.base * (0.75 + 0.25 * w.sl);
+  if (p.m === "cq" || p.m === "off") {
+    let a;
+    if (p.m === "off" && p.pts && p.pts.length) {      // still on the way round to the end of the line
+      if (tWalk(w, dt, p.pts[0].x, p.pts[0].y, sp)) p.pts.shift();
+      a = false; p.arr = false;
+    } else {
+      const s = fairSlot(w); a = tWalk(w, dt, s.x, s.y, sp); p.arr = a;
+    }
+    tNorm(w, dt);
+    if (a) { w.tview = "front"; if (p.m === "off") p.m = "cq"; }
+    if (a && !w.speaking && now > w.nextTalk) { w.nextTalk = now + rand(6000, 14000); say(w, pick(FAIR_SAYS)); }
+  } else if (p.m === "gout" || p.m === "cout") {       // stepping down out of the cabin / off the horse
+    if (tHop(w, dt)) { p.hop = null; p.m = "off"; w.tz = null; w.el.classList.remove("tnoname"); w.el.classList.add("tsmall"); }
+  } else if (p.m === "gboard") {                        // walk up to the loading platform, then step into the cabin
+    if (p.st === 0) {
+      const d = gDoor(ft, p.g, p.slot); w.tsc = laneS(w);
+      if (tWalk(w, dt, d.x, d.y, sp)) {
+        p.st = 1; const s = gSeat(ft, p.g, p.slot);
+        w.el.classList.add("tnoname");
+        tHopStart(w, s.x, s.y, s.s, Math.round(d.y), s.z, 0.65, 10 * ft.kg, 0.5);
+      }
+    } else if (tHop(w, dt)) { p.hop = null; p.m = "gride"; }
+  } else if (p.m === "cboard") {                        // walk to the platform steps, across the platform to the horse, climb on
+    w.tsc = laneS(w);
+    if (p.st === 0) {
+      const e = cEntry(ft); if (tWalk(w, dt, e.x, e.y, sp)) p.st = 1;
+    } else if (p.st === 1) {
+      const s = cStand(ft, p.k); if (tWalk(w, dt, s.x, s.y, sp)) {
+        p.st = 2; const t = cSeat(ft, p.k);
+        w.el.classList.add("tnoname");
+        tHopStart(w, t.x, t.y, t.s, Math.round(s.y), t.z, 0.7, 12 * ft.hs, 0.5);
+      }
+    } else if (tHop(w, dt)) { p.hop = null; p.m = "cride"; }
+  } else if (p.m === "gride") {
+    const s = gSeat(ft, p.g, p.slot); tPos(w, s.x, s.y); w.tsc = s.s; w.tz = s.z; w.tview = "front"; setStand(w, true);
+  } else if (p.m === "cride") {
+    const s = cSeat(ft, p.k); tPos(w, s.x, s.y); w.tsc = s.s; w.tz = s.z; w.tview = "front"; setStand(w, true);
+  }
+}
+
 function renderTrip(now) {
   const tr = state.trip; if (!tr) return;
   const b = tr.bus;
@@ -4308,14 +4470,16 @@ function renderTrip(now) {
     if (tr.cntTxt) b.cnt.textContent = tr.cntTxt;
   }
   const ft = tr.ft; if (!ft) return;
-  const { R, kk, wcx, baseY, hubY, rx, ry, ccx, cby, cs, zr } = ft;
+  const { R, kk, kg, wcx, baseY, hubY, rx, ry, ccx, cby, cs, hs, zr } = ft;
   const put = (e, l, t, w, h, z) => { const s = e.style; s.left = l + "px"; s.top = t + "px"; s.width = w + "px"; s.height = h + "px"; s.zIndex = z; };
   put(ft.wBase, wcx - R * 0.55, hubY, R * 1.1, baseY - hubY, zr - 1);
   put(ft.wGround, wcx - R * 0.8, baseY - 3, R * 1.6, 12, zr - 1);
   put(ft.wRot, wcx - R, hubY - R, 2 * R, 2 * R, zr); ft.wRot.style.transform = `rotate(${ft.rot}rad)`;
+  put(ft.wPlat, wcx - 62 * kg, baseY - 2, 124 * kg, 15, zr + 4);   // loading platform under the lowest gondola
   ft.gond.forEach(g => {
-    put(g.back, g.x - 44 * kk, g.y, 88 * kk, 70 * kk, zr + 1);
-    put(g.front, g.x - 40 * kk, g.y + 44 * kk, 80 * kk, 26 * kk, zr + 3);
+    put(g.back, g.x - 44 * kg, g.y, 88 * kg, 70 * kg, zr + 1);
+    put(g.front, g.x - 40 * kg, g.y + 44 * kg, 80 * kg, 26 * kg, zr + 3);
+    g.front.style.opacity = g.open ? 0.22 : 1;
   });
   const capTop = cby - 1.2 * rx, capH = 0.5 * rx, capBot = capTop + capH * 0.78;
   put(ft.cPlat, ccx - rx * 1.08, cby - ry * 1.08, rx * 2.16, ry * 2.16, zr);
@@ -4324,7 +4488,7 @@ function renderTrip(now) {
   put(ft.cCan, ccx - 1.15 * rx, capTop, 2.3 * rx, capH, zr + 9);
   ft.horses.forEach((h, k) => {
     const p = h._p; if (!p) return;
-    h.style.width = 62 * cs + "px"; h.style.height = 51 * cs + "px"; h.style.zIndex = p.z;
+    h.style.width = 62 * hs + "px"; h.style.height = 51 * hs + "px"; h.style.zIndex = p.z;
     h.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%,-55%) scaleX(${p.front ? -1 : 1})`;
     put(ft.poles[k], p.x - 2 * cs, capBot, 4 * cs, Math.max(2, p.y - capBot), p.z);
   });
@@ -4343,7 +4507,7 @@ function endFair(now) {
 function resetTripWalker(w) {
   w.tp = null; w.tsc = null; w.tview = null; w.tz = null; w.sready = false; w.wp = null; w.wait = 0; w.stand = false;
   w.el.style.display = "";
-  w.el.classList.remove("tnoname", "tsmall", "selfie", "standing");
+  w.el.classList.remove("tnoname", "tsmall", "selfie", "standing", "tride", "tseat");
   w.el.querySelectorAll(".phone").forEach(e => e.remove());
 }
 function finishTrip(now) {
