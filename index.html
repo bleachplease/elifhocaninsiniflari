@@ -937,7 +937,7 @@ const CONFIG = {
   ARRIVAL_WINDOW_MS: 12000,
   ARRIVAL_GAP_MAX_MS: 900,
   SIMIT_FIRST: 300000,      // first visit: 5 min after a class is opened
-  SIMIT_EVERY: 300000,      // then every 5 min (5, 10, 15 ...)
+  SIMIT_EVERY: Infinity,    // simitçi comes only once (minute 5); the 10th and 15th minute visits are cancelled (macuncu is planned around minute 20)
   SIMIT_ROAM: 60000,        // everyone roams eating for 1 min
   SIMIT_SERVE_MS: 900,      // time between two sales
   SIMIT_GUARD_MS: 1500,     // no halay/dance may start this close before the simitçi
