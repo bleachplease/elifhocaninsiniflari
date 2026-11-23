@@ -828,10 +828,6 @@
   #curtain.on { opacity: 1; }
   #curtain b { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; opacity: 0; transition: opacity 0.6s; font: 700 clamp(24px, 4.5vw, 48px) "Trebuchet MS", Verdana, sans-serif; }
   #curtain.txt b { opacity: 1; }
-  #dusk { position: fixed; inset: 0; pointer-events: none; z-index: 10; opacity: 0; transition: opacity 3s ease;
-    background: linear-gradient(rgba(110, 60, 150, 0.32), rgba(255, 140, 60, 0.26) 55%, rgba(60, 25, 60, 0.3)); }
-  body.dusk #dusk { opacity: 1; }
-  body.dusk #sky { background: linear-gradient(#3b3a7a 0%, #b8567e 38%, #f19a5a 74%, #ffd08a 100%); }
   #scene.fairing > #sky, #scene.fairing > #hills, #scene.fairing > #grass, #scene.fairing > #birds,
   #scene.fairing > #title, #scene.fairing > #path { display: none; }
   .tbus, .tbl { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
@@ -921,7 +917,6 @@
 <div id="vbanner" aria-live="polite"><b></b><small></small></div>
 <div id="pdim"></div>
 <div id="flash"></div>
-<div id="dusk"></div>
 <div id="curtain"><b></b></div>
 <div id="photo" aria-hidden="true"><div class="pframe"><div class="pwin"></div><div class="pcap"></div></div></div>
 
@@ -1784,13 +1779,13 @@ function stepScene(w, dt, now) {
 function checkSimit(now) {
   if (!menu.classList.contains("gone")) return;
   // a pending macuncu visit always takes priority over the simitçi
-  if (!state.simit && !state.volley && !state.photo && !state.tug && state.nextMacun === Infinity && now >= state.nextSimit && now < state.nextTug - CONFIG.SIMIT_GUARD_MS) startSimit(now);
+  if (!state.simit && !state.volley && !state.photo && !state.tug && !state.trip && state.nextMacun === Infinity && now >= state.nextSimit && now < state.nextTug - CONFIG.SIMIT_GUARD_MS) startSimit(now);
 }
 
 // the macuncu comes exactly 45 s after the tug of war has ended
 function checkMacun(now) {
   if (!menu.classList.contains("gone")) return;
-  if (state.simit || state.volley || state.photo || state.tug || now < state.nextMacun) return;
+  if (state.simit || state.volley || state.photo || state.tug || state.trip || now < state.nextMacun) return;
   startSimit(now, "macun");
 }
 
@@ -3868,7 +3863,7 @@ function endTug(now) {
 // After the macuncu scene: 9 s of normal roaming, a bus arrives, the class queues up (names shown) and boards one by
 // one, the driver counts them, the screen goes black and cuts to a fair (5 minutes): Ferris wheel (8 gondolas of 2-4),
 // carousel (6-8 riders), the rest queue and take selfies (phone up + the existing flash). Black screen again, then
-// the countryside comes back at dusk.
+// the countryside comes back as normal daytime.
 const BUS_SAYS = ["Camın kenarı benim!", "İtmeyin lütfen!", "Lunaparka gidiyoruz!", "Ben öne oturacağım!", "Hocam bizi unutmaz değil mi?", "Pamuk şeker yiyeceğim!"];
 const FAIR_SAYS = ["Dönme dolap çok yüksek!", "Pamuk şeker alalım!", "Atlıkarınca sırası uzun!", "Ben bir daha bineceğim!", "Sıra bende mi?", "Eller havaya!"];
 const SELFIE_AFTER = ["Çok güzel çıktık!", "Ben gözümü kapatmışım :(", "Bunu paylaşıyorum!", "Bir tane daha çekelim!"];
@@ -3985,6 +3980,7 @@ function checkTrip(now) {
 function startTrip(now) {
   state.nextTrip = Infinity;
   if (!walkers.length) { state.nextTrip = now + 5000; return; }
+  state.nextSimit = Infinity; state.nextMacun = Infinity;   // no vendor visits during or after the trip
   state.halay = false; state.halayEnd = now; state.nextHalay = Infinity;
   for (const w of walkers) {
     w.dance = null; w.el.classList.remove("dancing");
@@ -4498,7 +4494,6 @@ function endFair(now) {
   const tr = state.trip;
   tr.ft.els.forEach(e => e.remove()); tr.ft = null;
   scene.classList.remove("fairing");
-  document.body.classList.add("dusk");   // the countryside comes back at dusk
   walkers.forEach(w => {
     resetTripWalker(w);
     w.x = Math.random() < 0.5 ? -80 : innerWidth; w.dir = w.x < 0 ? 1 : -1; w.lane = rand(0.05, 1);
@@ -4815,7 +4810,6 @@ function closeClass() {
   state.nextMacun = Infinity;
   cleanupTrip();
   state.nextTrip = Infinity;
-  document.body.classList.remove("dusk");
   if (state.volley) {
     clearTimeout(state.volley.bannerT);
     Object.values(state.volley.els).forEach(e => e.remove());
