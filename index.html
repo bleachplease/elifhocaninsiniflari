@@ -1023,7 +1023,8 @@ const CONFIG = {
   POPUP_EVERY: 10000,
   POPUP_STAYS: 4000,
   DANCE_EVERY: 30000,
-  DANCE_FOR: 20000,
+  DANCE_FOR: 10000,
+  HALAY_FIRST: 90000,       // first halay: 1.5 min after a class is opened
   HALAY_EVERY: 180000,
   HALAY_FOR: 60000,
   HALAY_SPEED: 30,          // px/s the whole line travels around the circle while it steps in / out
@@ -1032,13 +1033,13 @@ const CONFIG = {
   HALAY_STEP: 26,           // how far (px at full size) the line steps toward the centre
   ARRIVAL_WINDOW_MS: 12000,
   ARRIVAL_GAP_MAX_MS: 900,
-  SIMIT_FIRST: 300000,      // first visit: 5 min after a class is opened
+  SIMIT_FIRST: 180000,      // first visit: 3 min after a class is opened
   SIMIT_EVERY: Infinity,    // simitçi comes only once (minute 5); the 10th and 15th minute visits are cancelled (macuncu is planned around minute 20)
-  SIMIT_ROAM: 60000,        // everyone roams eating for 1 min
+  SIMIT_ROAM: 30000,        // everyone roams eating for 30 s
   SIMIT_SERVE_MS: 900,      // time between two sales
   SIMIT_GUARD_MS: 1500,     // no halay/dance may start this close before the simitçi
   SIMIT_HALAY_DELAY: 8000,  // a halay that was skipped starts this long after the scene
-  VOLLEY_AT: 720000,        // volleyball match: once, 12 min after a class is opened
+  VOLLEY_AT: 460000,        // volleyball match: once, 7:40 after a class is opened
   VOLLEY_SETS_TO_WIN: 2,    // best of 3 sets
   VOLLEY_MIN_MS: 264000,    // shortest match: 4.4 min
   VOLLEY_MAX_MS: 540000,    // longest match: 9 min
@@ -1059,12 +1060,12 @@ const CONFIG = {
   TUG_MIN_MS: 24000,        // the pull itself lasts 24-36 s
   TUG_MAX_MS: 36000,
   TUG_END_MS: 7000,         // celebration after the flag crosses the line
-  PHOTO_AT: 480000,         // class photo: once, at minute 8 after a class is opened
-  PHOTO_FOR: 90000,         // ...and the scene is over at 9:30
+  PHOTO_AT: 300000,         // class photo: once, at minute 5 after a class is opened
+  PHOTO_FOR: 90000,         // ...and the scene is over at 6:30
   TRIP_ROAM: 9000,          // after the macuncu scene students roam 9 s, then the bus arrives
-  FAIR_FOR: 300000,         // the fair scene lasts exactly 5 minutes
+  FAIR_FOR: 240000,         // the fair scene lasts exactly 4 minutes
   SACK_WAIT_MIN: 8000,      // after the fair: students roam 8-9 s (no halay, simitçi, dance), then the sack race starts
-  SACK_WAIT_MAX: 9000,
+  SACK_WAIT_MAX: 8000,
   SACK_MIN_PLAYERS: 3,
   SACK_END_MS: 8000         // celebration after the winner crosses the line
 };
@@ -5133,7 +5134,7 @@ function openClass(className) {
 
   state.expected = names.length;
   menu.classList.add("gone");
-  state.nextHalay = performance.now() + CONFIG.HALAY_EVERY;
+  state.nextHalay = performance.now() + CONFIG.HALAY_FIRST;
   state.nextSimit = performance.now() + CONFIG.SIMIT_FIRST;
   state.nextMacun = Infinity;
   state.nextTrip = Infinity;
