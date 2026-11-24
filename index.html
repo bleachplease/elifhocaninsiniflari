@@ -752,6 +752,22 @@
   .walker.tugfall .p-side { transform-origin: 50% 98%; transform: rotate(74deg); transition: transform 0.6s cubic-bezier(0.5, 0, 0.9, 0.6); }
   .walker.tugfall .arm, .walker.tugfall .arm2 { display: block; animation: none; transform: rotate(-150deg); }
 
+  /* ---------- Sack race (patates çuvalı yarışı) ---------- */
+  #sackfield { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 0.8s ease; }
+  #sackfield.shown { opacity: 1; }
+  #sackfield .sl { position: absolute; left: 0; top: 0; width: 6px; background: rgba(255, 255, 255, 0.9); border-radius: 2px; will-change: transform; }
+  #sackfield .sl.fin { width: 14px; border-radius: 0; background: repeating-conic-gradient(#1b1b1b 0 25%, #fff 0 50%) 0 0 / 14px 14px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+  .sack { position: absolute; inset: 0; width: 100%; height: 100%; display: none; overflow: visible; pointer-events: none; }
+  .walker.sacking .sack { display: block; animation: sackPull 1.3s ease-out backwards; }
+  @keyframes sackPull { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+  .walker.sacking .leg { animation: none; }
+  .walker.sacking:not(.tugfall):not(.cheer) .arm { animation: none; transform: rotate(-24deg); }
+  .walker.sacking:not(.tugfall):not(.cheer) .arm2 { display: block; animation: none; transform: rotate(-17deg); }
+  .walker.sacking .p-side, .walker.sacking .sack { transform-origin: 50% 98%; }
+  .walker.sacking:not(.tugfall) .p-side, .walker.sacking:not(.tugfall) .sack { transform: rotate(5deg); transition: transform 0.5s ease; }
+  .walker.tugfall .sack { transform-origin: 50% 98%; transform: rotate(74deg); transition: transform 0.6s cubic-bezier(0.5, 0, 0.9, 0.6); }
+  .cf { position: absolute; left: 0; top: 0; z-index: 9600; pointer-events: none; will-change: transform; }
+
   /* ---------- Class photo scene (minute 8 -> 9:30) ---------- */
   .grin { display: none; }
   .walker.posing .grin { display: inline; }
@@ -1046,7 +1062,11 @@ const CONFIG = {
   PHOTO_AT: 480000,         // class photo: once, at minute 8 after a class is opened
   PHOTO_FOR: 90000,         // ...and the scene is over at 9:30
   TRIP_ROAM: 9000,          // after the macuncu scene students roam 9 s, then the bus arrives
-  FAIR_FOR: 300000          // the fair scene lasts exactly 5 minutes
+  FAIR_FOR: 300000,         // the fair scene lasts exactly 5 minutes
+  SACK_WAIT_MIN: 8000,      // after the fair: students roam 8-9 s (no halay, simitçi, dance), then the sack race starts
+  SACK_WAIT_MAX: 9000,
+  SACK_MIN_PLAYERS: 3,
+  SACK_END_MS: 8000         // celebration after the winner crosses the line
 };
 
 const GIRL_NAMES = new Set([
@@ -1084,6 +1104,8 @@ const state = {
   nextTug: Infinity,
   trip: null,
   nextTrip: Infinity,
+  sack: null,
+  nextSack: Infinity,
   base: 1,
   ellipse: null,
   lastFrame: performance.now()
@@ -1233,7 +1255,7 @@ function addStudent(name, index = walkers.length) {
   const girl = isGirl(cleanName);
   const hair = pick(HAIRS);
 
-  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl, hair)}${jerseySvg()}${rigSvg(shirt, skin, girl, hair)}${eatSvg(shirt, skin)}</div>${armsSvg(shirt, skin)}`;
+  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl, hair)}${jerseySvg()}${rigSvg(shirt, skin, girl, hair)}${eatSvg(shirt, skin)}${sackSvg()}</div>${armsSvg(shirt, skin)}`;
   el.querySelector(".name").textContent = cleanName;
   scene.appendChild(el);
 
@@ -1314,6 +1336,7 @@ function addStudent(name, index = walkers.length) {
   el.style.setProperty("--sd", (-rand(0, 2.3)).toFixed(2) + "s");
   w.ph = null; w.phAt = false; w.phX = 0; w.phL = 0.6; w.phSp = 0; w.phRel = 0;
   if (state.trip) joinTrip(w);
+  else if (state.sack) joinSack(w);
   else if (state.tug) joinTug(w);
   else if (state.simit) joinSimit(w);
   else if (state.volley) joinVolley(w);
@@ -1642,6 +1665,7 @@ function vsay(v, text, ms = 3200) {
 
 function pickSaying(w) {
   if (state.trip) return pick(state.trip.ft ? FAIR_SAYS : BUS_SAYS);
+  if (state.sack) return pick(SACK_CHEERS);
   if (state.tug) return pick(TUG_CHEERS);
   if (state.photo) return pick(PHOTO_SAYS);
   if (state.volley) return pick(VB_CHEERS);
@@ -3859,6 +3883,337 @@ function endTug(now) {
 }
 /* =====================  /TUG OF WAR  ===================== */
 
+
+/* =====================  SACK RACE (patates çuvalı yarışı)  ===================== */
+// Comes 8-9 s after the students are back from the fair (halay, simitçi and solo dances wait until it is over).
+// 5-6 students line up, pull a potato sack over their legs and hop to the finish line. One or two of them fall
+// flat on their faces (the same "tugfall" pose as in the tug of war), get up and carry on. Confetti pops over the winner.
+const SACK_CHEERS = [
+  "Zıpla zıpla!", "Hadi hadi hadi!", "Çuvaldan çıkma!", "Az kaldı!", "Hızlı zıpla!",
+  "Düşme sakın!", "Bitiş çizgisi orada!", "Yaşasın yarışçılar!", "Kim kazanacak?"
+];
+const SACK_FALLS = ["Ayy düştüm!", "Çuval kaydı!", "Of ya!", "Dengem bozuldu!", "Burnum!"];
+const CONF_COLORS = ["#ff4d6d", "#ffd23f", "#3bceac", "#4d9de0", "#a45ee5", "#ff9f1c", "#76b041", "#ffffff"];
+const confetti = [];
+
+function sackSvg() {
+  const u = ++uidCounter;
+  return `<svg class="sack" viewBox="0 0 90 150" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="sg${u}" x1="0" x2="1"><stop offset="0" stop-color="#dcbb80"/><stop offset=".55" stop-color="#c49a58"/><stop offset="1" stop-color="#97713b"/></linearGradient></defs>
+    <path d="M31 90 Q28.5 120 31 146 Q47 151.5 64 146 Q66.5 120 62 90 Z" fill="url(#sg${u})" stroke="#7a5a2c" stroke-width="1"/>
+    <path d="M30 87.5 Q46.5 83.5 63 87.5 L62.5 96 Q46.5 100.5 30.5 96 Z" fill="#b58a4c" stroke="#7a5a2c" stroke-width=".9"/>
+    <path d="M32 91 Q46.5 95 61 91" stroke="#7a5a2c" stroke-width=".6" fill="none" stroke-dasharray="1.8 1.4"/>
+    <path d="M33 106 H61 M32.5 116 H62 M32 126 H63 M32.5 136 H62.5" stroke="#8d6a36" stroke-width=".5" opacity=".5" stroke-dasharray="1.6 1.2"/>
+    <path d="M36.5 98 Q37.5 122 36.5 146 M47 100 Q48 124 47 150 M57.5 98 Q58.5 122 58 146" stroke="#8d6a36" stroke-width=".4" opacity=".35" fill="none"/>
+    <path d="M32 144 Q47 148.5 63 144" stroke="#6a4c22" stroke-width=".8" stroke-dasharray="2 1.5" fill="none"/>
+    <text x="47" y="124" font-size="6.2" font-weight="700" text-anchor="middle" fill="#7a2a1a" font-family="Arial, sans-serif" letter-spacing=".3">PATATES</text>
+  </svg>`;
+}
+
+function sackBanner(title, sub, ms) {
+  const sk = state.sack;
+  const el = document.getElementById("vbanner");
+  el.querySelector("b").textContent = title;
+  el.querySelector("small").textContent = sub || "";
+  el.classList.add("show");
+  if (sk) { clearTimeout(sk.bannerT); sk.bannerT = setTimeout(() => el.classList.remove("show"), ms); }
+}
+
+function checkSack(now) {
+  if (!menu.classList.contains("gone")) return;
+  if (state.sack || now < state.nextSack) return;
+  if (state.trip || state.volley || state.tug || state.photo || state.simit) { state.nextSack = now + 1000; return; }
+  startSack(now);
+}
+
+function startSack(now) {
+  state.nextSack = Infinity;
+  const n = walkers.length;
+  if (n < CONFIG.SACK_MIN_PLAYERS) { state.nextHalay = now + CONFIG.SIMIT_HALAY_DELAY; return; }
+
+  if (state.halay) { state.halay = false; state.halayEnd = now; }
+
+  const k = Math.min(n, pick([5, 6]));
+  const order = shuffle(walkers);
+  const racers = order.slice(0, k);
+  const fans = order.slice(k);
+
+  const X0 = innerWidth * 0.12, X1 = innerWidth * 0.86;
+  const L0 = 0.3, L1 = 0.95;
+  const lanes = racers.map((_, i) => k === 1 ? 0.6 : L0 + i * (L1 - L0) / (k - 1));
+
+  const field = document.createElement("div");
+  field.id = "sackfield";
+  field.innerHTML = '<i class="sl"></i><i class="sl fin"></i>';
+  scene.appendChild(field);
+  setTimeout(() => field.classList.add("shown"), 30);
+
+  // the winner is the fastest; the one or two who fall are never the winner
+  const winner = racers[Math.floor(Math.random() * k)];
+  const others = racers.filter(w => w !== winner);
+  const nF = k >= 4 && Math.random() < 0.5 ? 2 : 1;
+  const fallers = shuffle(others).slice(0, nF);
+  const fallFrac = nF === 2 ? [rand(0.2, 0.42), rand(0.52, 0.75)] : [rand(0.25, 0.6)];
+  const Dw = rand(15, 18);
+
+  const sk = state.sack = {
+    phase: "gather", phaseStart: now, racers, fans, all: walkers.slice(), lanes,
+    X0, X1, Lr: X1 - X0, winner, win: null, order: [], step: 0, cfStep: 0, winT: 0, until: 0,
+    bannerT: null, els: { field }
+  };
+
+  walkers.forEach((w, i) => {
+    w.dance = null;
+    w.el.classList.remove("dancing");
+    w.sready = false; w.wp = null; w.wait = 0;
+    w.skAt = false; w.skSp = rand(140, 190);
+    w.el.classList.add("vsm");
+    if (i % 2) w.el.classList.add("vsm2");
+  });
+  racers.forEach((w, i) => {
+    w.sk = "racer";
+    w.skS = "idle"; w.skCross = 0; w.skFell = false; w.skFallAt = null; w.skT = 0; w.skN = 0;
+    w.skPer = rand(0.62, 0.74);
+    const D = w === winner ? Dw : Dw * rand(1.08, 1.24);
+    w.skStep = (sk.Lr / D) * w.skPer;
+    const fi = fallers.indexOf(w);
+    if (fi >= 0) w.skFallAt = fallFrac[fi];
+  });
+  fans.forEach(w => { w.sk = "fan"; });
+}
+
+function joinSack(w) {
+  const sk = state.sack;
+  w.sk = "fan";
+  w.sready = false; w.wp = null; w.wait = 0;
+  w.skAt = false; w.skSp = rand(140, 190);
+  w.el.classList.add("vsm");
+  if (sk.phase === "ready" || sk.phase === "race" || sk.phase === "end") w.el.classList.add("cheer");
+  sk.fans.push(w);
+  sk.all.push(w);
+}
+
+function stepSack(w, dt, now) {
+  const sk = state.sack;
+  const sPre = state.base * (0.75 + 0.25 * w.sl);
+
+  // ---- the hopping race ----
+  if (w.sk === "racer" && (sk.phase === "race" || sk.phase === "end") && w.skS !== "idle" && w.skS !== "done") {
+    setStand(w, true);
+    w.dir = 1;
+    if (w.skS === "down") {
+      w.jy = 0;
+      if (now - w.skT0 >= 1100) { w.el.classList.remove("tugfall"); w.skS = "rise"; w.skT0 = now; }
+      return;
+    }
+    if (w.skS === "rise") {
+      w.jy = 0;
+      if (now - w.skT0 >= 500) { w.skS = "hop"; w.skT = 0; w.skN = 0; }
+      return;
+    }
+    // hop: a short pause on the ground, then a smooth jump forward
+    w.skT += dt / w.skPer;
+    const n = Math.floor(w.skT), startN = w.skN;
+    while (w.skN < n) { w.skBase += w.skStep; w.skN++; }
+    const ph = w.skT - n, a = Math.min(1, ph / 0.8);
+    w.x = w.skBase + w.skStep * phSmooth(a) - 45;
+    w.jy = 18 * sPre * Math.sin(Math.PI * a);
+    const cx = w.x + 45;
+
+    if (!w.skCross && cx >= sk.X1) {
+      w.skCross = now;
+      sk.order.push(w);
+      if (!sk.win) {
+        sk.win = w;
+        sackBanner(`🏆 ${w.name} kazandı!`, "Patates çuvalı yarışı", 6500);
+      }
+    }
+    if (w.skCross && w.skN > startN) {            // landed after crossing the line: stop here
+      w.skS = "done"; w.jy = 0; w.x = w.skBase - 45;
+      if (w === sk.win) {
+        sk.phase = "end"; sk.until = now + CONFIG.SACK_END_MS; sk.winT = now; sk.cfStep = 0;
+        w.el.classList.remove("sacking");
+        w.el.classList.add("cheer");
+        say(w, "Yaşasın! Kazandım!");
+      } else if (Math.random() < 0.6) say(w, pick(["Bitirdim!", "Yoruldum ama bitirdim!", "Tebrikler kazanana!", "Bir dahaki sefere!"]));
+      return;
+    }
+    if (!w.skCross && w.skFallAt != null && !w.skFell && ph >= 0.8 && cx >= sk.X0 + w.skFallAt * sk.Lr) {
+      w.skFell = true; w.skS = "down"; w.skT0 = now;
+      w.skBase = cx; w.skT = 0; w.skN = 0; w.jy = 0;
+      w.el.classList.add("tugfall");
+      say(w, pick(SACK_FALLS));
+    }
+    return;
+  }
+
+  // ---- walking to a spot (line-up, fans) / standing still ----
+  if (w.skS === "done") {
+    w.jy = 0;
+    setStand(w, true);
+    if (w === sk.win) {
+      // the winner jumps for joy outside the sack
+      w.jy = 10 * sPre * Math.abs(Math.sin((now - sk.winT) / 150));
+    }
+    w.dir = 1;
+    return;
+  }
+  const tx = w.skX - 45, tl = w.skL;
+  let moving = false;
+  const dx = tx - w.x, dl = tl - w.sl;
+  const dist = Math.hypot(dx, dl * innerHeight * 0.42);
+  const step = w.skSp * sPre * dt;
+  if (dist > 1.5 && step > 0) {
+    if (dist <= step) { w.x = tx; w.sl = tl; }
+    else { const f = step / dist; w.x += dx * f; w.sl += dl * f; moving = true; }
+    if (Math.abs(dx) > 1) w.dir = dx > 0 ? 1 : -1;
+  }
+  w.skAt = !moving && dist <= 3;
+  if (!moving && w.skFace) w.dir = w.skFace;
+  setStand(w, !moving);
+}
+
+function updateSack(now, dt) {
+  const sk = state.sack;
+  if (!sk) return;
+
+  if (!walkers.length || sk.all.some(w => !walkers.includes(w))) { endSack(now); return; }
+
+  const [R, F] = [sk.racers, sk.fans];
+
+  if (sk.phase === "gather") {
+    const waited = now - sk.phaseStart;
+    if ((waited >= 3500 && R.every(w => w.skAt)) || waited >= 15000) {
+      sk.phase = "dress"; sk.phaseStart = now;
+      R.forEach(w => w.el.classList.add("sacking"));          // everybody pulls the sack up over the legs
+      sackBanner("Çuvalları geçirin! 🥔", "", 1900);
+    }
+  } else if (sk.phase === "dress") {
+    if (now - sk.phaseStart >= 2000) { sk.phase = "ready"; sk.phaseStart = now; sk.step = 0; }
+  } else if (sk.phase === "ready") {
+    const t = now - sk.phaseStart;
+    const seq = [[0, "Hazır!"], [1100, "3"], [2000, "2"], [2900, "1"], [3800, "ZIPLA! 🥔"]];
+    while (sk.step < seq.length && t >= seq[sk.step][0]) {
+      sackBanner(seq[sk.step][1], "", sk.step === seq.length - 1 ? 1300 : 800);
+      sk.step++;
+    }
+    if (t >= 3800) {
+      sk.phase = "race"; sk.phaseStart = now;
+      R.forEach(w => { w.skS = "hop"; w.skT = 0; w.skN = 0; w.skBase = w.x + 45; });
+      F.forEach(w => w.el.classList.add("cheer"));
+    }
+  } else if (sk.phase === "race") {
+    if (now - sk.phaseStart > 45000) {                         // safety: never hang
+      R.forEach(w => { if (w.skS !== "done") { w.skS = "done"; w.jy = 0; w.el.classList.remove("tugfall"); } });
+      sk.phase = "end"; sk.until = now + 1500; sk.winT = now;
+    } else if (Math.random() < dt / 2.2) {
+      const w = pick(walkers);
+      if (w) say(w, pick(SACK_CHEERS));
+    }
+  } else if (sk.phase === "end") {
+    // confetti pops over the winner's head
+    const wn = sk.win;
+    const bursts = [0, 450, 900, 1500, 2200, 3000];
+    if (wn) {
+      while (sk.cfStep < bursts.length && now >= sk.winT + bursts[sk.cfStep]) {
+        const h = 150 * (wn.ss || 1);
+        spawnConfetti(wn.sx || wn.x + 45, (wn.stop || 0) + h * 0.08, sk.cfStep === 0 ? 80 : 45);
+        sk.cfStep++;
+      }
+    }
+    const allDone = R.every(w => w.skS === "done");
+    if ((now >= sk.until && allDone) || now >= sk.until + 6000) { endSack(now); return; }
+  }
+
+  // positions: the racers stand on the start line, the fans spread out behind them
+  R.forEach((w, i) => { if (w.skS === "idle") { w.skX = sk.X0 - 6; w.skL = sk.lanes[i]; w.skFace = 1; } });
+  const nf = F.length, rows = nf > 10 ? 2 : 1, per = Math.ceil(nf / rows);
+  F.forEach((w, i) => {
+    const r = rows === 2 ? i % 2 : 0;
+    const col = rows === 2 ? Math.floor(i / 2) : i;
+    w.skX = innerWidth * 0.08 + (col + 0.5) * (innerWidth * 0.84 / per) + (r ? 12 : 0);
+    w.skL = r ? 0.04 : 0.15;
+    w.skFace = w.skX < innerWidth / 2 ? 1 : -1;
+  });
+}
+
+function renderSack(now) {
+  const sk = state.sack;
+  if (!sk) return;
+  const lines = sk.els.field.children;
+  const foot = L => innerHeight * 0.52 + L * innerHeight * 0.42;
+  const top = foot(sk.lanes[0]) - 16, bot = foot(sk.lanes[sk.lanes.length - 1]) + 16;
+  [[sk.X0, 3], [sk.X1, 7]].forEach(([x, hw], i) => {
+    const el = lines[i];
+    el.style.height = `${Math.max(10, bot - top)}px`;
+    el.style.transform = `translate(${x - hw}px, ${top}px)`;
+  });
+}
+
+function spawnConfetti(x, y, n) {
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement("i");
+    el.className = "cf";
+    const wd = rand(5, 9);
+    el.style.width = `${wd}px`;
+    el.style.height = `${wd * rand(1.1, 1.8)}px`;
+    el.style.background = pick(CONF_COLORS);
+    el.style.borderRadius = Math.random() < 0.25 ? "50%" : "1px";
+    scene.appendChild(el);
+    const ang = rand(-Math.PI * 0.95, -Math.PI * 0.05), sp = rand(150, 520);
+    confetti.push({ el, x: x + rand(-8, 8), y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: rand(0, 360), vr: rand(-540, 540), life: 0, max: rand(2.4, 3.8), ph: rand(0, 6.28) });
+  }
+}
+
+function updateConfetti(dt) {
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const p = confetti[i];
+    p.life += dt;
+    p.vy += (650 - 3.2 * p.vy) * dt;        // gravity with air drag: the pieces float down
+    p.vx += (-2.2 * p.vx) * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.vr * dt;
+    const flip = Math.cos(p.ph + p.life * 9);
+    p.el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) rotate(${p.r.toFixed(0)}deg) scaleY(${flip.toFixed(2)})`;
+    const fade = p.life > p.max * 0.7 ? Math.max(0, 1 - (p.life - p.max * 0.7) / (p.max * 0.3)) : 1;
+    p.el.style.opacity = fade.toFixed(2);
+    if (p.life >= p.max) { p.el.remove(); confetti.splice(i, 1); }
+  }
+}
+
+function cleanupSack() {
+  const sk = state.sack;
+  confetti.splice(0).forEach(p => p.el.remove());
+  if (!sk) return;
+  clearTimeout(sk.bannerT);
+  Object.values(sk.els).forEach(e => e.remove());
+  document.getElementById("vbanner").classList.remove("show");
+  state.sack = null;
+}
+
+function endSack(now) {
+  if (!state.sack) return;
+  for (const w of walkers) {
+    if (w.sk) {
+      w.lane = phClamp(w.sl, 0, 1);
+      w.dir = Math.random() < 0.5 ? 1 : -1;
+    }
+    w.sk = null; w.skS = null; w.skAt = false; w.skFallAt = null;
+    w.jy = 0;
+    w.sready = false; w.wp = null; w.wait = 0; w.stand = false;
+    w.el.classList.remove("sacking", "tugfall", "cheer", "vsm", "vsm2", "standing");
+  }
+  const sk = state.sack;
+  sk.els.field.classList.remove("shown");
+  const field = sk.els.field;
+  state.sack = null;
+  clearTimeout(sk.bannerT);
+  document.getElementById("vbanner").classList.remove("show");
+  setTimeout(() => field.remove(), 900);
+  // normal life continues: the halay comes a few seconds after the race
+  state.nextHalay = now + CONFIG.SIMIT_HALAY_DELAY;
+}
+/* =====================  /SACK RACE  ===================== */
+
 /* =====================  BUS TRIP + FAIR  ===================== */
 // After the macuncu scene: 9 s of normal roaming, a bus arrives, the class queues up (names shown) and boards one by
 // one, the driver counts them, the screen goes black and cuts to a fair (5 minutes): Ferris wheel (8 gondolas of 2-4),
@@ -4492,6 +4847,7 @@ function renderTrip(now) {
 
 function endFair(now) {
   const tr = state.trip;
+  state.nextSack = now + rand(CONFIG.SACK_WAIT_MIN, CONFIG.SACK_WAIT_MAX);   // 8-9 s of plain roaming, then the sack race
   tr.ft.els.forEach(e => e.remove()); tr.ft = null;
   scene.classList.remove("fairing");
   walkers.forEach(w => {
@@ -4508,7 +4864,8 @@ function resetTripWalker(w) {
 function finishTrip(now) {
   const tr = state.trip; if (!tr) return;
   cleanupTrip();
-  state.nextHalay = now + CONFIG.SIMIT_HALAY_DELAY;
+  // the sack race comes first; the halay waits until it is over
+  state.nextHalay = state.nextSack !== Infinity ? Infinity : now + CONFIG.SIMIT_HALAY_DELAY;
 }
 function cleanupTrip() {
   const tr = state.trip;
@@ -4527,7 +4884,7 @@ function checkHalay(now) {
   if (!menu.classList.contains("gone")) return;
 
   // the simit scene always wins: no halay while it runs or is about to start
-  const simitBusy = !!state.trip || state.nextTrip !== Infinity || !!state.simit || !!state.volley || !!state.photo || !!state.tug || now >= state.nextTug - CONFIG.SIMIT_GUARD_MS || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextMacun - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
+  const simitBusy = !!state.trip || state.nextTrip !== Infinity || !!state.sack || state.nextSack !== Infinity || !!state.simit || !!state.volley || !!state.photo || !!state.tug || now >= state.nextTug - CONFIG.SIMIT_GUARD_MS || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextMacun - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
 
   if (!state.halay && !simitBusy && now >= state.nextHalay && walkers.length) {
     state.halay = true;
@@ -4554,6 +4911,7 @@ function tick(now) {
   checkPhoto(now);
   checkHalay(now);
   checkTrip(now);
+  checkSack(now);
 
   const n = Math.max(walkers.length, state.expected);
   const base = n <= 10 ? 1 : Math.max(0.55, 1 - (n - 10) * 0.017);
@@ -4564,6 +4922,7 @@ function tick(now) {
   updatePhoto(now, dt);
   updateTug(now, dt);
   updateTrip(now, dt);
+  updateSack(now, dt);
 
   const e0 = ensureEllipse(walkers.length || 1);
   const rotD = (Math.min(now, state.halayEnd) - state.halayStart) * CONFIG.HALAY_SPEED / 1000;
@@ -4585,7 +4944,7 @@ function tick(now) {
     const e = w.hk * w.hk * (3 - 2 * w.hk);
 
     // the simit scene takes over once any dance / halay pose has faded out
-    const sceneMode = state.trip && w.tp ? "trip" : state.tug && w.tg ? "tug" : state.simit && w.sm ? "simit" : (state.volley && w.vb ? "volley" : (state.photo && w.ph ? "photo" : null));
+    const sceneMode = state.trip && w.tp ? "trip" : state.sack && w.sk ? "sack" : state.tug && w.tg ? "tug" : state.simit && w.sm ? "simit" : (state.volley && w.vb ? "volley" : (state.photo && w.ph ? "photo" : null));
     const sceneOn = !!sceneMode && w.hk <= 0 && w.k < 0.03;
     if (sceneOn && !w.sready) {
       w.sready = true;
@@ -4599,6 +4958,7 @@ function tick(now) {
 
     if (sceneOn) {
       if (sceneMode === "trip") stepTrip(w, dt, now);
+      else if (sceneMode === "sack") stepSack(w, dt, now);
       else if (sceneMode === "tug") stepTug(w, dt, now);
       else if (sceneMode === "simit") stepScene(w, dt, now);
       else if (sceneMode === "photo") stepPhoto(w, dt, now);
@@ -4693,6 +5053,8 @@ function tick(now) {
   renderPhoto(now);
   renderTug(now);
   renderTrip(now);
+  renderSack(now);
+  updateConfetti(dt);
   requestAnimationFrame(tick);
 }
 
@@ -4731,7 +5093,7 @@ function faceSvg(w) {
 }
 
 function startDance() {
-  if (!menu.classList.contains("gone") || state.halay || state.simit || state.volley || state.photo || state.tug || state.trip || state.nextTrip !== Infinity) return;
+  if (!menu.classList.contains("gone") || state.halay || state.simit || state.volley || state.photo || state.tug || state.trip || state.nextTrip !== Infinity || state.sack || state.nextSack !== Infinity) return;
   if (performance.now() >= state.nextTug - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextSimit - CONFIG.SIMIT_GUARD_MS) return;
@@ -4775,6 +5137,7 @@ function openClass(className) {
   state.nextSimit = performance.now() + CONFIG.SIMIT_FIRST;
   state.nextMacun = Infinity;
   state.nextTrip = Infinity;
+  state.nextSack = Infinity;
   state.nextVolley = performance.now() + CONFIG.VOLLEY_AT;
   state.nextPhoto = performance.now() + CONFIG.PHOTO_AT;
 
@@ -4810,6 +5173,8 @@ function closeClass() {
   state.nextMacun = Infinity;
   cleanupTrip();
   state.nextTrip = Infinity;
+  cleanupSack();
+  state.nextSack = Infinity;
   if (state.volley) {
     clearTimeout(state.volley.bannerT);
     Object.values(state.volley.els).forEach(e => e.remove());
