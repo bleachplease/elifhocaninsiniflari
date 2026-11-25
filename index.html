@@ -1840,13 +1840,13 @@ function stepScene(w, dt, now) {
 function checkSimit(now) {
   if (!menu.classList.contains("gone")) return;
   // a pending macuncu visit always takes priority over the simitçi
-  if (!state.simit && !state.volley && !state.photo && !state.tug && !state.trip && state.nextMacun === Infinity && now >= state.nextSimit && now < state.nextTug - CONFIG.SIMIT_GUARD_MS) startSimit(now);
+  if (!state.simit && !state.volley && !state.photo && !state.tug && !state.trip && !state.sack && !state.water && state.nextSack === Infinity && state.nextWater === Infinity && state.nextMacun === Infinity && now >= state.nextSimit && now < state.nextTug - CONFIG.SIMIT_GUARD_MS) startSimit(now);
 }
 
 // the macuncu comes exactly 45 s after the tug of war has ended
 function checkMacun(now) {
   if (!menu.classList.contains("gone")) return;
-  if (state.simit || state.volley || state.photo || state.tug || state.trip || now < state.nextMacun) return;
+  if (state.simit || state.volley || state.photo || state.tug || state.trip || state.sack || state.water || now < state.nextMacun) return;
   startSimit(now, "macun");
 }
 
@@ -4340,7 +4340,7 @@ function wFace(a, o) {
 function checkWater(now) {
   if (!menu.classList.contains("gone")) return;
   if (state.water || now < state.nextWater) return;
-  if (state.trip || state.volley || state.tug || state.photo || state.simit || state.sack) { state.nextWater = now + 1000; return; }
+  if (state.trip || state.volley || state.tug || state.sack) { state.nextWater = now + 1000; return; }
   startWater(now);
 }
 
@@ -4361,7 +4361,11 @@ function startWater(now) {
   state.nextWater = Infinity;
   const n = walkers.length;
   if (n < CONFIG.WATER_MIN_PLAYERS) { state.nextHalay = now + CONFIG.SIMIT_HALAY_DELAY; return; }
+  // the water fight overrides halay, solo dances, the simit/macun scene and the class photo
   if (state.halay) { state.halay = false; state.halayEnd = now; }
+  if (state.simit) endSimit(now);
+  if (state.photo) endPhoto(now);
+  state.nextSimit = Infinity; state.nextMacun = Infinity;
 
   const cv = document.createElement("canvas");
   cv.id = "wcv";
@@ -5022,6 +5026,8 @@ function checkTrip(now) {
 function startTrip(now) {
   state.nextTrip = Infinity;
   if (!walkers.length) { state.nextTrip = now + 5000; return; }
+  if (state.simit) endSimit(now);
+  if (state.photo) endPhoto(now);
   state.nextSimit = Infinity; state.nextMacun = Infinity;   // no vendor visits during or after the trip
   state.halay = false; state.halayEnd = now; state.nextHalay = Infinity;
   for (const w of walkers) {
