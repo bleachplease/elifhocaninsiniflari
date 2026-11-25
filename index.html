@@ -889,6 +889,34 @@
   .cpolel { background: repeating-linear-gradient(160deg, #fff0b0 0 3px, #b9892f 3px 6px); border-radius: 2px; box-shadow: 0 0 0 0.5px rgba(80,50,10,0.5); }
   .chorse { position: absolute; left: 0; top: 0; pointer-events: none; }
   .chorse svg { width: 100%; height: 100%; display: block; }
+
+  /* ---------- Water fight (su savaşı) ---------- */
+  #wcv { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 8800; pointer-events: none; }
+  .wpool { position: absolute; left: 0; top: 0; opacity: 0; transition: opacity 0.8s ease; pointer-events: none; will-change: transform; }
+  .wpool.shown { opacity: 1; }
+  .wpool svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+  .wgun { position: absolute; inset: 0; width: 100%; height: 100%; display: none; overflow: visible; pointer-events: none; }
+  .wgun .gun, .wgun .bkt { display: none; }
+  .walker.wfs .wgun, .walker.wbk .wgun { display: block; }
+  .walker.wfs:not(.wbk) .wgun .gun { display: block; }
+  .walker.wbk .wgun .bkt { display: block; }
+  .walker.wthrow .wgun .bkt { transform-origin: 82px 62px; animation: bktThrow 0.6s ease-in-out forwards; }
+  @keyframes bktThrow { 0% { transform: rotate(0); } 40% { transform: rotate(-28deg); } 100% { transform: rotate(78deg); } }
+
+  .walker.wfs .arm:not(.arm2), .walker.wbk .arm:not(.arm2) { animation: none; transform: rotate(-84deg); }
+  .walker.wfs .arm2, .walker.wbk .arm2 { display: block; animation: none; transform: rotate(-74deg); }
+  .walker.wrun .leg { animation-duration: 0.26s; }
+  .walker.wrun:not(.wfs):not(.wbk) .arm { animation-duration: 0.26s; }
+  .walker.wfh .arm:not(.arm2) { animation: none; transform: rotate(-162deg); }
+  .walker.wfh .arm2 { display: block; animation: none; transform: rotate(-142deg); }
+  .walker.wfh .p-side { transform-origin: 50% 98%; animation: wShake 0.16s ease-in-out infinite alternate; }
+  @keyframes wShake { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+  .walker.wfhit .p-side { transform-origin: 50% 98%; animation: wFlinch 0.38s ease-out; }
+  .walker.wshield .arm:not(.arm2) { animation: none; transform: rotate(-135deg); }
+  .walker.wshield .arm2 { display: block; animation: none; transform: rotate(-120deg); }
+  .walker.wshield .wgun { display: none !important; }
+  @keyframes wFlinch { 0% { transform: rotate(0); } 25% { transform: rotate(-9deg) translateX(-3px); } 100% { transform: rotate(0); } }
 </style>
 </head>
 <body>
@@ -931,6 +959,7 @@
   <div class="vs-team b"><span class="vs-pts">0</span><span class="vs-serve">🏐</span><span class="vs-name">Mavi</span><i class="vs-dot"></i></div>
 </div>
 <div id="vbanner" aria-live="polite"><b></b><small></small></div>
+
 <div id="pdim"></div>
 <div id="flash"></div>
 <div id="curtain"><b></b></div>
@@ -1067,7 +1096,11 @@ const CONFIG = {
   SACK_WAIT_MIN: 8000,      // after the fair: students roam 8-9 s (no halay, simitçi, dance), then the sack race starts
   SACK_WAIT_MAX: 8000,
   SACK_MIN_PLAYERS: 3,
-  SACK_END_MS: 8000         // celebration after the winner crosses the line
+  SACK_END_MS: 8000,        // celebration after the winner crosses the line
+  WATER_AFTER_SACK_MS: 15000, // water fight starts 15 s after the sack race is over
+  WATER_FOR: 180000,        // the fight itself lasts exactly 3 minutes (after the 3-2-1 countdown)
+  WATER_END_MS: 6500,       // final shower + celebration
+  WATER_MIN_PLAYERS: 2
 };
 
 const GIRL_NAMES = new Set([
@@ -1107,6 +1140,8 @@ const state = {
   nextTrip: Infinity,
   sack: null,
   nextSack: Infinity,
+  water: null,
+  nextWater: Infinity,
   base: 1,
   ellipse: null,
   lastFrame: performance.now()
@@ -1256,7 +1291,7 @@ function addStudent(name, index = walkers.length) {
   const girl = isGirl(cleanName);
   const hair = pick(HAIRS);
 
-  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl, hair)}${jerseySvg()}${rigSvg(shirt, skin, girl, hair)}${eatSvg(shirt, skin)}${sackSvg()}</div>${armsSvg(shirt, skin)}`;
+  el.innerHTML = `<div class="bubble"></div><div class="name"></div><div class="flipper">${allViews(shirt, skin, girl, hair)}${jerseySvg()}${rigSvg(shirt, skin, girl, hair)}${eatSvg(shirt, skin)}${sackSvg()}${waterSvg()}</div>${armsSvg(shirt, skin)}`;
   el.querySelector(".name").textContent = cleanName;
   scene.appendChild(el);
 
@@ -1336,7 +1371,8 @@ function addStudent(name, index = walkers.length) {
   el.classList.add("pz" + w.pz);
   el.style.setProperty("--sd", (-rand(0, 2.3)).toFixed(2) + "s");
   w.ph = null; w.phAt = false; w.phX = 0; w.phL = 0.6; w.phSp = 0; w.phRel = 0;
-  if (state.trip) joinTrip(w);
+  if (state.water) joinWater(w);
+  else if (state.trip) joinTrip(w);
   else if (state.sack) joinSack(w);
   else if (state.tug) joinTug(w);
   else if (state.simit) joinSimit(w);
@@ -4210,10 +4246,660 @@ function endSack(now) {
   clearTimeout(sk.bannerT);
   document.getElementById("vbanner").classList.remove("show");
   setTimeout(() => field.remove(), 900);
-  // normal life continues: the halay comes a few seconds after the race
+  // the water fight comes 15 s after the race; the halay waits until it is over
+  state.nextWater = now + CONFIG.WATER_AFTER_SACK_MS;
   state.nextHalay = now + CONFIG.SIMIT_HALAY_DELAY;
 }
 /* =====================  /SACK RACE  ===================== */
+
+/* =====================  WATER FIGHT (su savaşı)  ===================== */
+// Starts 15 s after the sack race is over and lasts 3 minutes. Everybody gets a squirt gun. A few small skirmishes run
+// at the same time in separate arenas (never more than 4): 3-against-1 ambush (the victim finally swings a bucket),
+// 1-on-1 duel (dodging, ends with a water balloon) and a chase (somebody runs, one or two chase and soak him).
+// Students who are not in a skirmish wait at the two paddling pools on the sides and rotate in. Drops are drawn on one canvas.
+const WATER_HIT_SAYS = ["Soğuk soğuk!", "Yeter ama!", "Sırılsıklam oldum!", "Gözüme kaçtı!", "Ayy ıslandım!", "Saçım! Saçım!", "Üşüdüm!"];
+const WATER_AMBUSH_V = ["Üçe bir haksızlık!", "Bu hiç adil değil!", "Dur dur, pes!", "Kovayı alıyorum!"];
+const WATER_AMBUSH_A = ["Yakaladık seni!", "Çember tamam!", "Hep birlikte!", "Kaçamazsın!"];
+const WATER_DUEL = ["Bire bir!", "Hazırım!", "Kaçırdın!", "Şimdi göreceksin!", "Düello!"];
+const WATER_CHASE_R = ["Yakalayamazsınız!", "İmdat!", "Çok hızlısınız!", "Bırakın beni!"];
+const WATER_CHASE_C = ["Dur!", "Yakalayın onu!", "Kaçamazsın!", "Peşindeyim!"];
+const WATER_CHEERS = ["Su! Su! Su!", "Hadi hadi!", "Kovayı doldurdum!", "Sıra bende mi?", "Çok eğlenceli!", "Sırada ben varım!"];
+const GUN_COLORS = ["#ff6b3d", "#2fb7a8", "#f2c230", "#8e5de6", "#ff7aa2", "#4d9de0", "#76b041", "#f08a4b"];
+const BALLOON_COLORS = ["#ff4d6d", "#ffd23f", "#3bceac", "#a45ee5", "#ff9f1c"];
+const W_CLASSES = ["wshield", "wfs", "wfh", "wbk", "wthrow", "wfhit", "wrun", "cheer", "tugfall", "armup", "vsm", "vsm2", "standing"];
+const WG = 1100;
+let wDt = 0.016;          // gravity of the drops (px/s²)
+const wdrops = [];
+const wpuds = [];
+let wpd = null;
+function wPuddle(x, y) {
+  for (const p of wpuds) if (Math.abs(p.x - x) < 16 && Math.abs(p.y - y) < 6) { p.r = Math.min(p.rmax, p.r + 1.2); p.life = 0; return; }
+  if (wpuds.length > 160) wpuds.shift();
+  wpuds.push({ x, y, r: 4, rmax: rand(14, 26), a: 0, life: 0 });
+}
+function wDrawPuddles(dt, drying) {
+  const c = wpd; if (!c) return;
+  const ctx = c.ctx;
+  ctx.setTransform(c.dpr, 0, 0, c.dpr, 0, 0);
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  for (let i = wpuds.length - 1; i >= 0; i--) {
+    const p = wpuds[i];
+    p.life += dt;
+    if (drying) p.a -= dt / 18; else p.a = Math.min(0.5, p.a + dt * 0.6);
+    if (p.a <= 0 && drying) { wpuds.splice(i, 1); continue; }
+    ctx.fillStyle = `rgba(52,78,104,${(p.a * 0.55).toFixed(3)})`;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * 0.32, 0, 0, 6.3); ctx.fill();
+    ctx.strokeStyle = `rgba(200,230,250,${(p.a * 0.7).toFixed(3)})`; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * 0.32, 0, 0, 6.3); ctx.stroke();
+  }
+  if (drying && !wpuds.length) { c.cv.remove(); wpd = null; }
+}
+
+function waterSvg() {
+  return `<svg class="wgun" viewBox="0 0 90 150" xmlns="http://www.w3.org/2000/svg">
+    <g class="gun">
+      <rect x="80" y="57" width="5" height="12" rx="2" fill="#3a4350" transform="rotate(-8 82 60)"/>
+      <rect x="79" y="52" width="23" height="8" rx="3.5" style="fill:var(--gc,#ff6b3d)" stroke="#2b3a42" stroke-width=".7"/>
+      <rect x="84" y="45.5" width="13" height="7.5" rx="3.5" fill="#8fd3ff" stroke="#2b3a42" stroke-width=".6" opacity=".95"/>
+      <rect x="100" y="54" width="8" height="3.6" rx="1.5" fill="#e9eef2" stroke="#2b3a42" stroke-width=".5"/>
+    </g>
+    <g class="bkt">
+      <path d="M80 52 Q89 38 98 52" fill="none" stroke="#4a5560" stroke-width="1.4"/>
+      <path d="M80 52 L98 52 L95 71 L83 71 Z" fill="#3b8fe0" stroke="#1f5fa3" stroke-width=".9"/>
+      <ellipse cx="89" cy="52" rx="9" ry="2.4" fill="#9fd8ff" stroke="#1f5fa3" stroke-width=".7"/>
+      <path d="M82 60 H96" stroke="#fff" stroke-width="1.2" opacity=".35"/>
+    </g>
+  </svg>`;
+}
+
+function poolSvg() {
+  return `<svg viewBox="0 0 170 80" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="85" cy="58" rx="80" ry="22" fill="#000" opacity=".15"/>
+    <ellipse cx="85" cy="50" rx="80" ry="25" fill="#f2c230" stroke="#c99a12" stroke-width="2"/>
+    <ellipse cx="85" cy="48" rx="68" ry="18.5" fill="#4aaee8"/>
+    <ellipse cx="85" cy="46" rx="56" ry="12" fill="#8fd3ff" opacity=".75"/>
+    <path d="M52 44 Q64 40 76 44 M96 48 Q108 44 120 48" stroke="#fff" stroke-width="1.6" fill="none" opacity=".7" stroke-linecap="round"/>
+    <path d="M12 44 Q14 30 30 30 M158 44 Q156 30 140 30" stroke="#fff" stroke-width="2" fill="none" opacity=".35"/>
+  </svg>`;
+}
+
+const wFoot = L => innerHeight * 0.52 + L * innerHeight * 0.42;
+const wClampL = L => Math.min(0.96, Math.max(0.07, L));
+const wCx = w => (w.sx != null ? w.sx : w.x + 45);
+
+function wCls(w, c, on) {
+  if (!w.wc) w.wc = {};
+  if (!!w.wc[c] !== on) { w.wc[c] = on; w.el.classList.toggle(c, on); }
+}
+function wFace(a, o) {
+  const d = wCx(o) - wCx(a);
+  if (Math.abs(d) > 12) a.wface = d > 0 ? 1 : -1;
+  else if (!a.wface) a.wface = a.dir || 1;
+}
+
+function checkWater(now) {
+  if (!menu.classList.contains("gone")) return;
+  if (state.water || now < state.nextWater) return;
+  if (state.trip || state.volley || state.tug || state.photo || state.simit || state.sack) { state.nextWater = now + 1000; return; }
+  startWater(now);
+}
+
+function wInitWalker(w, i) {
+  w.dance = null;
+  w.el.classList.remove("dancing");
+  w.sready = false; w.wp = null; w.wait = 0;
+  w.wf = true; w.wg = null; w.wc = {}; w.wplayed = 0; w.wet = w.wet || 0;
+  w.wfl = -1e9; w.wvx = 0; w.wfall = false; w.wjump = null; w.wfhitU = 0; w.wat = false;
+  w.wtx = w.x + 45; w.wtl = w.lane; w.wspd = 170; w.wface = 0; w.wcn = 0; w.wcheer = false;
+  w.wacc = 0; w.wfireUntil = 0; w.wfireNext = 0; w.wmv = 0;
+  w.el.classList.add("vsm");
+  if (i % 2) w.el.classList.add("vsm2");
+  w.el.style.setProperty("--gc", GUN_COLORS[i % GUN_COLORS.length]);
+}
+
+function startWater(now) {
+  state.nextWater = Infinity;
+  const n = walkers.length;
+  if (n < CONFIG.WATER_MIN_PLAYERS) { state.nextHalay = now + CONFIG.SIMIT_HALAY_DELAY; return; }
+  if (state.halay) { state.halay = false; state.halayEnd = now; }
+
+  const cv = document.createElement("canvas");
+  cv.id = "wcv";
+  scene.appendChild(cv);
+  const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+  if (!wpd) {
+    const pc = document.createElement("canvas");
+    pc.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none";
+    pc.width = Math.round(innerWidth * dpr); pc.height = Math.round(innerHeight * dpr);
+    scene.appendChild(pc);
+    wpd = { cv: pc, ctx: pc.getContext("2d"), dpr };
+  }
+  const pools = [0, 1].map(() => {
+    const el = document.createElement("div");
+    el.className = "wpool";
+    el.innerHTML = poolSvg();
+    scene.appendChild(el);
+    setTimeout(() => el.classList.add("shown"), 30);
+    return el;
+  });
+
+  const arenas = [[0.27, 0.28], [0.5, 0.72], [0.73, 0.28], [0.27, 0.72], [0.5, 0.28], [0.73, 0.72]].map(([fx, cl]) => ({ fx, cl, g: null, freeAt: 0 }));
+  state.water = {
+    phase: "gather", phaseStart: now, now, fightEnd: 0, until: 0, step: 0, cfStep: 0,
+    groups: [], arenas, bag: [], maxG: Math.max(1, Math.min(4, Math.round(n / 5))),
+    cv, ctx: cv.getContext("2d"), dpr, pools, bannerT: null, last: now, rain: 0, rainUntil: 0
+  };
+  wSizeCanvas();
+  walkers.forEach((w, i) => wInitWalker(w, i));
+}
+
+function wSizeCanvas() {
+  const wa = state.water; if (!wa) return;
+  wa.cv.width = Math.round(innerWidth * wa.dpr);
+  wa.cv.height = Math.round(innerHeight * wa.dpr);
+  wa.w = innerWidth; wa.h = innerHeight;
+}
+addEventListener("resize", wSizeCanvas);
+
+function joinWater(w) {
+  wInitWalker(w, walkers.indexOf(w));
+  const wa = state.water;
+  if (wa.phase !== "gather") w.wcheer = true;
+}
+
+/* ---------- drops ---------- */
+function wStream(sh, tg, opts) {
+  if (!tg.ss || !sh.ss || wdrops.length > 650) return;
+  const o = opts || {};
+  const mx = sh.sx + (sh.dir || 1) * ((o.bucket ? 93 : 107) - 45) * sh.ss;
+  const my = sh.stop + (o.bucket ? 60 : 56) * sh.ss;
+  const s = tg.ss;
+  const spread = (o.spread || 12) * s;
+  let tx = tg.sx + rand(-spread, spread);
+  const ty = tg.stop + rand(30, 96) * s;
+  const dist = Math.hypot(tx - mx, ty - my);
+  const T = Math.max(0.12, Math.min(0.5, dist / (o.bucket ? 640 : 980))) * rand(o.t0 || 0.94, o.t1 || 1.06);
+  tx += (tg.wvx || 0) * T * 0.8;
+  const vx = (tx - mx) / T, vy = (ty - my) / T - 0.5 * WG * T;
+  const sz = o.sz ? rand(o.sz[0], o.sz[1]) : rand(2.2, 3.4);
+  const f = Math.random() * wDt;                        // spread the drops of one frame along the jet
+  wdrops.push({ k: "d", x: mx + vx * f, y: my + vy * f, vx, vy, life: 0, sz, a: rand(0.75, 1), tg, gy: tg.sf + (tg.jy || 0) + rand(-6, 6), pw: o.pw || 1 });
+}
+
+function wShooter(sh, tg, now, dt, rate) {
+  if (now < sh.wfireUntil) {
+    sh.wacc += rate * dt;
+    while (sh.wacc >= 1) { wStream(sh, tg); sh.wacc -= 1; }
+  } else if (now >= sh.wfireNext) {
+    sh.wfireUntil = now + rand(500, 1100);
+    sh.wfireNext = sh.wfireUntil + rand(350, 1100);
+    sh.wacc = 0;
+  }
+}
+
+function wBucket(V, targets) {
+  targets.forEach(a => {
+    for (let i = 0; i < 20; i++) wStream(V, a, { bucket: true, pw: 3, sz: [3, 5.2], spread: 26, t0: 0.75, t1: 1.3 });
+  });
+}
+
+function wBurst(x, y, n, gy, power) {
+  for (let i = 0; i < n; i++) {
+    const ang = rand(-Math.PI * 0.95, -Math.PI * 0.05), sp = rand(60, power);
+    wdrops.push({ k: "d", x: x + rand(-6, 6), y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 0, sz: rand(1.4, 3.4), a: rand(0.55, 0.9), tg: null, gy });
+  }
+}
+function wRing(x, y, r) { wdrops.push({ k: "r", x, y, t: 0, T: 0.45, r }); }
+
+function wBalloon(sh, tg, onHit) {
+  const x0 = sh.sx + (sh.dir || 1) * 30 * sh.ss, y0 = sh.stop + 40 * sh.ss;
+  const x1 = tg.sx, y1 = tg.stop + 30 * tg.ss;
+  wdrops.push({ k: "b", x: x0, y: y0, x0, y0, x1, y1, t: 0, T: 0.75, arc: 110, col: pick(BALLOON_COLORS), cb: onHit, gy: tg.sf });
+}
+
+function wWet(t, amt, now, react) {
+  t.wet = Math.min(1, (t.wet || 0) + amt);
+  if (react && Math.random() < 0.06) wReact(t, now, false);
+}
+function wReact(t, now, strong) {
+  if (t.wfall) return;
+  if (now - t.wfl < 750 && !strong) return;
+  t.wfl = now;
+  wCls(t, "wfhit", true); t.wfhitU = now + 380;
+  if (!t.wc.wfh && !t.wc.wbk && Math.random() < 0.4) { wCls(t, "wshield", true); t.wshU = now + 650; }
+  if (Math.random() < (strong ? 0.7 : 0.2)) say(t, pick(WATER_HIT_SAYS));
+}
+
+function wDraw(dt) {
+  const wa = state.water;
+  const ctx = wa.ctx;
+  ctx.setTransform(wa.dpr, 0, 0, wa.dpr, 0, 0);
+  ctx.clearRect(0, 0, wa.w, wa.h);
+  ctx.lineCap = "round";
+  for (let i = wdrops.length - 1; i >= 0; i--) {
+    const p = wdrops[i];
+    if (p.k === "b") {                                    // water balloon
+      p.t += dt;
+      const a = Math.min(1, p.t / p.T);
+      p.x = p.x0 + (p.x1 - p.x0) * a;
+      p.y = p.y0 + (p.y1 - p.y0) * a - p.arc * 4 * a * (1 - a);
+      ctx.save();
+      ctx.translate(p.x, p.y); ctx.rotate(p.t * 7);
+      ctx.fillStyle = p.col; ctx.beginPath(); ctx.ellipse(0, 0, 8, 10, 0, 0, 6.3); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.6)"; ctx.beginPath(); ctx.ellipse(-3, -3.5, 2, 3, 0, 0, 6.3); ctx.fill();
+      ctx.restore();
+      if (a >= 1) { wdrops.splice(i, 1); if (p.cb) p.cb(p.x, p.y); }
+      continue;
+    }
+    if (p.k === "m") {                                    // mist puff where a jet hits
+      p.t += dt;
+      const a = p.t / p.T;
+      ctx.fillStyle = `rgba(225,243,255,${(0.32 * (1 - a)).toFixed(2)})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y - a * 8, p.r * (0.5 + a), 0, 6.3); ctx.fill();
+      if (a >= 1) wdrops.splice(i, 1);
+      continue;
+    }
+    if (p.k === "r") {                                    // ripple
+      p.t += dt;
+      const a = p.t / p.T;
+      ctx.strokeStyle = `rgba(210,240,255,${(0.8 * (1 - a)).toFixed(2)})`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r * (0.4 + a), p.r * (0.4 + a) * 0.35, 0, 0, 6.3); ctx.stroke();
+      if (a >= 1) wdrops.splice(i, 1);
+      continue;
+    }
+    p.life += dt;
+    const px = p.x, py = p.y;
+    p.vy += WG * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    const t = p.tg;
+    if (t && p.life > 0.05 && t.ss && Math.abs(p.x - t.sx) < 20 * t.ss && p.y > t.stop + 10 * t.ss && p.y < t.stop + 140 * t.ss) {
+      wWet(t, 0.0009 * p.pw, wa.now, true);
+      if (Math.random() < 0.12) wdrops.push({ k: "m", x: p.x, y: p.y, t: 0, T: 0.4, r: rand(7, 13) });
+      if (wdrops.length < 600) wBurst(p.x, p.y, 3, p.gy, 170);
+      wdrops.splice(i, 1);
+      continue;
+    }
+    if (p.y >= p.gy && p.vy > 0) {
+      if (!p.bn && p.vy > 260 && wdrops.length < 600 && Math.random() < 0.35) {      // small bounce
+        wdrops.push({ k: "d", x: p.x, y: p.gy - 1, vx: p.vx * 0.3 + rand(-50, 50), vy: -rand(70, 160), life: 0, sz: 1.5, a: 0.7, tg: null, gy: p.gy + 2, bn: 1 });
+      }
+      if (p.sz > 2.4 && Math.random() < 0.3) wRing(p.x, p.gy, 6 + p.sz * 2);
+      if (Math.random() < 0.05) wPuddle(p.x, p.gy);
+      wdrops.splice(i, 1);
+      continue;
+    }
+    const sx0 = p.x - p.vx * 0.022, sy0 = p.y - p.vy * 0.022;     // streak = a continuous jet at high density
+    ctx.strokeStyle = `rgba(${p.sz > 3.4 ? "70,160,240" : "110,190,255"},${p.a.toFixed(2)})`;
+    ctx.lineWidth = p.sz;
+    ctx.beginPath(); ctx.moveTo(sx0, sy0); ctx.lineTo(p.x, p.y); ctx.stroke();
+    if (p.sz > 2.6) {
+      ctx.strokeStyle = "rgba(235,248,255,.55)"; ctx.lineWidth = p.sz * 0.35;
+      ctx.beginPath(); ctx.moveTo(sx0, sy0); ctx.lineTo(p.x, p.y); ctx.stroke();
+    }
+  }
+}
+
+/* ---------- skirmish scripts ---------- */
+function wRelease(w) {
+  ["wfs", "wfh", "wbk", "wthrow", "wfhit", "wshield", "wrun", "cheer", "tugfall", "armup"].forEach(c => wCls(w, c, false));
+  w.wg = null; w.wfall = false; w.wface = 0; w.wjump = null; w.jy = 0; w.wat = false;
+}
+
+function wEndGroup(g, now) {
+  const wa = state.water;
+  g.m.forEach(w => { if (w.wg === g) wRelease(w); });
+  wa.groups.splice(wa.groups.indexOf(g), 1);
+  g.ar.g = null;
+  g.ar.freeAt = now + rand(500, 2000);
+}
+
+function wAmbush(g, now, dt) {
+  const [V, ...As] = g.m, ar = g.ar, cx = innerWidth * ar.fx, cl = ar.cl;
+  const t = (now - g.phT) / 1000;
+  const Rx = 90 * state.base + 40, Rl = 0.12;
+  const spot = (i, th) => { const a = th + i * 2.0944; return [cx + Rx * Math.cos(a), wClampL(cl + Rl * Math.sin(a))]; };
+
+  if (g.ph === "in") {
+    V.wtx = cx; V.wtl = cl; V.wspd = 220; V.wface = 0;
+    As.forEach((a, i) => { const [x, l] = spot(i, g.th); a.wtx = x; a.wtl = l; a.wspd = 280; a.wface = 0; wCls(a, "wfs", true); });
+    if ((V.wat && As.every(a => a.wat)) || t > 7) {
+      g.ph = "orbit"; g.phT = now; g.vi = 0; g.vt = now;
+      wCls(V, "wfh", true);
+      say(V, pick(WATER_AMBUSH_V)); say(As[0], pick(WATER_AMBUSH_A));
+    }
+  } else if (g.ph === "orbit") {
+    g.th += g.ds * (0.8 + 0.4 * Math.sin(t * 1.7)) * dt;
+    As.forEach((a, i) => { const [x, l] = spot(i, g.th); a.wtx = x; a.wtl = l; a.wspd = 200; wFace(a, V); wShooter(a, V, now, dt, 85); });
+    if (now - g.vt > 1100) { g.vt = now; g.vi = (g.vi + 1) % 3; }
+    wFace(V, As[g.vi]);                                    // the victim keeps spinning toward the next shooter
+    V.wtx = cx + 16 * Math.sin(t * 3.4); V.wtl = wClampL(cl + 0.02 * Math.sin(t * 2.6)); V.wspd = 90;
+    if (t > 8.5) {
+      g.ph = "bucket"; g.phT = now; g.thrown = false; g.scatter = false;
+      wCls(V, "wfh", false); wCls(V, "wbk", true);
+      As.forEach(a => { wCls(a, "wfs", false); a.wtx = wCx(a) ; a.wspd = 60; });
+      const nr = As.reduce((b, a) => Math.abs(wCx(a) - wCx(V)) < Math.abs(wCx(b) - wCx(V)) ? a : b);
+      wFace(V, nr);
+    }
+  } else {
+    const tb = (now - g.phT) / 1000;
+    V.wtx = cx; V.wtl = cl; V.wspd = 60;
+    if (!g.thrown && tb > 0.9) {
+      g.thrown = true;
+      wCls(V, "wthrow", true);
+      wBucket(V, As);
+      As.forEach(a => { wCls(a, "wfh", true); wWet(a, 0.12, now, false); wReact(a, now, true); });
+      say(V, "Al bakalım!");
+    }
+    if (g.thrown && !g.scatter && tb > 1.9) {
+      g.scatter = true;
+      wCls(V, "wthrow", false); wCls(V, "wbk", false); wCls(V, "cheer", true);
+      const gap = Math.min(300, innerWidth * 0.13);
+      As.forEach((a, i) => {
+        wCls(a, "wfh", false);
+        a.wtx = Math.max(innerWidth * 0.06, Math.min(innerWidth * 0.94, cx + (i - 1) * gap + rand(-50, 50)));
+        a.wtl = wClampL(cl + rand(-0.15, 0.15)); a.wspd = 300; a.wface = 0;
+      });
+    }
+    if (tb > 3.7) g.done = true;
+  }
+}
+
+function wDuel(g, now, dt) {
+  const [P, Q] = g.m, ar = g.ar, cx = innerWidth * ar.fx, cl = ar.cl;
+  const t = (now - g.phT) / 1000;
+  const D0 = Math.min(230 * state.base + 70, innerWidth * 0.2);
+
+  if (g.ph === "in") {
+    P.wtx = cx - D0 / 2; Q.wtx = cx + D0 / 2; P.wtl = Q.wtl = cl; P.wspd = Q.wspd = 270; P.wface = Q.wface = 0;
+    wCls(P, "wfs", true); wCls(Q, "wfs", true);
+    if ((P.wat && Q.wat) || t > 7) {
+      g.ph = "fight"; g.phT = now; g.dn = [now + 1200, now + 1700]; g.off = [0, 0]; g.lo = [0, 0]; g.ou = [0, 0];
+      say(P, pick(WATER_DUEL)); say(Q, pick(WATER_DUEL));
+    }
+  } else if (g.ph === "fight") {
+    P.wface = 1; Q.wface = -1;
+    const d = D0 * (1 + 0.28 * Math.sin(t * 0.95));       // they step toward and away from each other
+    g.m.forEach((w, i) => {
+      if (now > g.dn[i]) {
+        g.dn[i] = now + rand(1400, 2600);
+        const r = Math.random();
+        if (r < 0.34) w.wjump = { t0: now, d: 520, h: 26 };           // hop
+        else if (r < 0.67) { g.lo[i] = (Math.random() < 0.5 ? -1 : 1) * 0.09; g.ou[i] = now + 800; }   // side-step in depth
+        else { g.off[i] = i ? 60 : -60; g.ou[i] = now + 700; }         // jump back
+      }
+      if (now > g.ou[i]) { g.off[i] = 0; g.lo[i] = 0; }
+    });
+    P.wtx = cx - d / 2 + g.off[0]; Q.wtx = cx + d / 2 + g.off[1];
+    P.wtl = wClampL(cl + g.lo[0]); Q.wtl = wClampL(cl + g.lo[1]); P.wspd = Q.wspd = 240;
+    wShooter(P, Q, now, dt, 85); wShooter(Q, P, now, dt, 85);
+    if (t > 9) {
+      g.ph = "balloon"; g.phT = now; g.thrown = false; g.fallT = 0;
+      g.win = Math.random() < 0.5 ? 0 : 1;
+      const th = g.m[g.win], lo = g.m[1 - g.win];
+      wCls(th, "wfs", false); wCls(lo, "wfs", false); wCls(th, "armup", true);
+      th.wtx = cx + (g.win ? 1 : -1) * D0 / 2; lo.wtx = cx - (g.win ? 1 : -1) * D0 / 2;
+      th.wspd = lo.wspd = 120;
+      say(th, "Son kozum: balon!"); say(lo, "Hayır hayır!");
+    }
+  } else {
+    const tb = (now - g.phT) / 1000;
+    const th = g.m[g.win], lo = g.m[1 - g.win];
+    if (!g.thrown && tb > 0.8) {
+      g.thrown = true;
+      wCls(th, "armup", false); wCls(lo, "wfh", true);
+      wBalloon(th, lo, (x, y) => {
+        if (!walkers.includes(lo) || lo.wg !== g) return;
+        wBurst(x, y, 34, lo.sf + (lo.jy || 0), 460); wRing(x, lo.sf, 26);
+        wWet(lo, 0.18, state.water.now, false);
+        wCls(lo, "wfh", false); wCls(lo, "tugfall", true); lo.wfall = true; g.fallT = state.water.now;
+        wCls(th, "cheer", true);
+        say(th, "Tam isabet!");
+      });
+    }
+    if (g.fallT && !g.risen && now - g.fallT > 1100) {
+      g.risen = true; lo.wfall = false; wCls(lo, "tugfall", false);
+      say(lo, pick(WATER_HIT_SAYS));
+    }
+    if ((g.fallT && now - g.fallT > 2300) || tb > 6) g.done = true;
+  }
+}
+
+function wChase(g, now, dt) {
+  const [R, ...Cs] = g.m, ar = g.ar, cx = innerWidth * ar.fx, cl = ar.cl;
+  const Ax = Math.min(innerWidth * 0.12, 270), Al = 0.1;
+  const path = phi => [cx + Ax * Math.sin(phi), wClampL(cl + Al * Math.sin(2 * phi))];
+  const lag = [0.55, 1.0];
+  const t = (now - g.phT) / 1000;
+
+  if (g.ph === "in" || g.ph === "run") {
+    if (g.ph === "run") g.phi += (0.78 + 0.03 * Math.min(t, 8)) * dt;
+    const fast = g.ph === "run";
+    const [rx, rl] = path(g.phi); R.wtx = rx; R.wtl = rl; R.wspd = fast ? 420 : 280; R.wface = 0;
+    Cs.forEach((c, i) => {
+      const [x, l] = path(g.phi - lag[i]); c.wtx = x; c.wtl = l; c.wspd = fast ? 430 : 300;
+      wCls(c, "wfs", true);
+      if (fast) { wFace(c, R); wShooter(c, R, now, dt, 80); } else c.wface = 0;
+    });
+    if (g.ph === "in" && ((R.wat && Cs.every(c => c.wat)) || t > 7)) {
+      g.ph = "run"; g.phT = now;
+      say(R, pick(WATER_CHASE_R)); say(Cs[0], pick(WATER_CHASE_C));
+    } else if (g.ph === "run" && t > 9.5) {
+      g.ph = "corner"; g.phT = now;
+      R.wtx = wCx(R); R.wtl = R.sl; R.wspd = 200; wCls(R, "wfh", true);
+      say(R, "Pes ediyorum!");
+    }
+  } else {
+    const tb = (now - g.phT) / 1000;
+    const rx = wCx(R), gap = 85 * (R.ss || 1);
+    Cs.forEach((c, i) => {
+      const side = Cs.length === 1 ? -1 : (i ? 1 : -1);
+      c.wtx = rx + side * gap; c.wtl = R.sl; c.wspd = 300; wFace(c, R);
+      if (tb < 2.6) { c.wfireUntil = now + 100; c.wfireNext = now + 100; wShooter(c, R, now, dt, 110); }
+    });
+    wFace(R, Cs[0]);
+    if (tb > 2.6 && !g.cheer) {
+      g.cheer = true;
+      wCls(R, "wfh", false);
+      g.m.forEach(w => { wCls(w, "wfs", false); wCls(w, "cheer", true); });
+      say(R, "Sırılsıklam oldum!");
+    }
+    if (tb > 3.9) g.done = true;
+  }
+}
+
+function wFill(now) {
+  const wa = state.water;
+  if (wa.groups.length >= wa.maxG) return;
+  const free = wa.arenas.filter(a => !a.g && now >= a.freeAt);
+  if (!free.length) return;
+  const idle = walkers.filter(w => !w.wg && !w.wfall);
+  idle.forEach(w => { w.wkey = w.wplayed + Math.random() * 0.9; });
+  idle.sort((a, b) => a.wkey - b.wkey);
+  let type = null, need = 0;
+  for (let tries = 0; tries < 3 && !type; tries++) {
+    if (!wa.bag.length) wa.bag = shuffle(["ambush", "duel", "chase"]);
+    const cand = wa.bag.pop();
+    const n = cand === "ambush" ? 4 : cand === "duel" ? 2 : (idle.length >= 3 && Math.random() < 0.5 ? 3 : 2);
+    if (idle.length >= n) { type = cand; need = n; }
+  }
+  if (!type) return;
+
+  const busy = wa.arenas.filter(a => a.g);
+  let best = null, bs = -1;
+  free.forEach(a => {
+    let s = Math.random() * 0.4;
+    busy.forEach(b => { s += Math.hypot((a.fx - b.fx) * 3, (a.cl - b.cl) * 2.2); });
+    if (s > bs) { bs = s; best = a; }
+  });
+  const g = {
+    type, m: idle.slice(0, need), ar: best, ph: "in", phT: now, done: false,
+    th: rand(0, 6.28), ds: Math.random() < 0.5 ? 1 : -1, phi: rand(0, 6.28),
+    upd: type === "ambush" ? wAmbush : type === "duel" ? wDuel : wChase
+  };
+  best.g = g; wa.groups.push(g);
+  g.m.forEach(w => {
+    w.wg = g; w.wplayed++; wCls(w, "cheer", false);
+    w.wfireUntil = 0; w.wfireNext = now + rand(200, 900); w.wacc = 0; w.wat = false; w.wface = 0;
+  });
+}
+
+function wCrew(w, i, now) {
+  const side = i % 2, col = Math.floor(i / 2) % 3, row = Math.floor(i / 6);
+  const Wd = innerWidth;
+  w.wtx = side ? Wd * 0.965 - col * Wd * 0.047 : Wd * 0.035 + col * Wd * 0.047;
+  w.wtl = Math.min(0.95, 0.13 + row * 0.11 + (col % 2) * 0.04);
+  w.wspd = 190;
+  w.wface = w.wat ? (side ? -1 : 1) : 0;
+  wCls(w, "wfs", false); wCls(w, "wfh", false); wCls(w, "wbk", false);
+  if (now > w.wcn) { w.wcheer = Math.random() < 0.5; w.wcn = now + rand(2000, 5000); }
+  wCls(w, "cheer", w.wat && state.water.phase !== "gather" && w.wcheer);
+}
+
+function updateWater(now, dt) {
+  const wa = state.water;
+  if (!wa) return;
+  wa.now = now; wDt = dt;
+  if (!walkers.length) { endWater(now); return; }
+
+  if (wa.phase === "gather") {
+    const waited = now - wa.phaseStart;
+    if ((waited >= 3500 && walkers.every(w => w.wat)) || waited >= 12000) {
+      wa.phase = "ready"; wa.phaseStart = now; wa.step = 0;
+    }
+  } else if (wa.phase === "ready") {
+    const t = now - wa.phaseStart;
+    if (t >= 1500) {
+      wa.phase = "fight"; wa.phaseStart = now; wa.fightEnd = now + CONFIG.WATER_FOR;
+      wa.arenas.forEach((a, i) => { a.freeAt = now + i * 350; });
+    }
+  } else if (wa.phase === "fight") {
+    if (now >= wa.fightEnd) {
+      wa.groups.slice().forEach(g => wEndGroup(g, now));
+      wa.phase = "end"; wa.phaseStart = now; wa.until = now + CONFIG.WATER_END_MS; wa.rainUntil = now + 3800;
+      walkers.forEach(w => { w.wcheer = true; w.wcn = now + 4000; });
+    } else {
+      for (let gi = wa.groups.length - 1; gi >= 0; gi--) {
+        const g = wa.groups[gi];
+        if (g.m.some(w => !walkers.includes(w))) { wEndGroup(g, now); continue; }
+        g.upd(g, now, dt);
+        if (g.done) wEndGroup(g, now);
+      }
+      wFill(now);
+      if (Math.random() < dt / 2.4) {
+        const crew = walkers.filter(w => !w.wg && w.wat);
+        if (crew.length) say(pick(crew), pick(WATER_CHEERS));
+      }
+    }
+  } else if (wa.phase === "end") {
+    if (now < wa.rainUntil) {                              // a final shower from the sky
+      wa.rain += 170 * dt;
+      while (wa.rain >= 1 && wdrops.length < 700) {
+        wa.rain -= 1;
+        wdrops.push({ k: "d", x: rand(0, innerWidth), y: -10, vx: rand(-20, 20), vy: rand(520, 780), life: 0, sz: rand(1.5, 2.4), a: rand(0.45, 0.75), tg: null, gy: innerHeight * rand(0.56, 0.95) });
+      }
+    }
+    if (now >= wa.until) { endWater(now); return; }
+  }
+
+  walkers.forEach((w, i) => { if (!w.wg) wCrew(w, i, now); });
+}
+
+function stepWater(w, dt, now) {
+  const sPre = state.base * (0.75 + 0.25 * w.sl);
+
+  if (w.wjump) {
+    const a = (now - w.wjump.t0) / w.wjump.d;
+    if (a >= 1) { w.wjump = null; w.jy = 0; } else w.jy = w.wjump.h * sPre * Math.sin(Math.PI * a);
+  } else w.jy = 0;
+  if (w.wc && w.wc.wfhit && now > w.wfhitU) wCls(w, "wfhit", false);
+  if (w.wc && w.wc.wshield && now > w.wshU) wCls(w, "wshield", false);
+
+  if (w.wfall) { setStand(w, true); w.wmv = 0; return; }
+
+  const tx = w.wtx - 45, tl = w.wtl;
+  const dx = tx - w.x, dl = tl - w.sl;
+  const dist = Math.hypot(dx, dl * innerHeight * 0.42);
+  const step = (w.wspd || 150) * sPre * dt;
+  let moved = 0;
+  const x0 = w.x;
+  if (dist > 1.5 && step > 0) {
+    if (dist <= step) { w.x = tx; w.sl = tl; moved = dist; }
+    else { const f = step / dist; w.x += dx * f; w.sl += dl * f; moved = step; }
+  }
+  const moving = moved > 0.01 && dist > 1.5;
+  w.wat = Math.hypot(tx - w.x, (tl - w.sl) * innerHeight * 0.42) <= 4;
+  w.wvx += (((w.x - x0) / Math.max(dt, 0.001)) - w.wvx) * Math.min(1, dt * 8);
+  w.wmv += ((moved / Math.max(dt, 0.001)) - w.wmv) * Math.min(1, dt * 8);
+  if (w.wface) w.dir = w.wface;
+  else if (Math.abs(dx) > 1) w.dir = dx > 0 ? 1 : -1;
+  setStand(w, !moving);
+  wCls(w, "wrun", moving && w.wmv > 120 * sPre);
+}
+
+function renderWater(now) {
+  const wa = state.water;
+  const dt = Math.min(0.1, Math.max(0, (now - (renderWater.last || now)) / 1000));
+  renderWater.last = now;
+
+  if (wa) {
+    wa.pools.forEach((el, i) => {
+      const wd = 150 * state.base + 40;
+      el.style.width = `${wd}px`;
+      el.style.zIndex = Math.round(wFoot(0.06));
+      el.style.transform = `translate(${(i ? innerWidth * 0.925 : innerWidth * 0.075) - wd / 2}px, ${wFoot(0.1) - wd * 0.3}px)`;
+    });
+    wDraw(dt);
+  }
+  wDrawPuddles(dt, !wa);
+
+  // wet clothes + drips (clothes dry slowly after the fight)
+  for (const w of walkers) {
+    let v = w.wet || 0;
+    if (!wa && v > 0) { v = w.wet = Math.max(0, v - dt / 20); }
+    const f = Math.round(v * 30) / 30;
+    if (f !== w.wfv) {
+      w.wfv = f;
+      if (!w.flipEl) w.flipEl = w.el.querySelector(".flipper");
+      w.flipEl.style.filter = f > 0 ? `brightness(${(1 - 0.4 * f).toFixed(3)}) contrast(${(1 + 0.1 * f).toFixed(3)}) saturate(${(1 + 0.2 * f).toFixed(3)})` : "";
+    }
+    if (wa && v > 0.5 && w.ss && Math.random() < dt * 0.5 * v) wPuddle(w.sx + rand(-16, 16) * w.ss, w.sf + (w.jy || 0));
+    if (wa && v > 0.3 && w.ss && wdrops.length < 600 && Math.random() < dt * 4 * v) {
+      wdrops.push({ k: "d", x: w.sx + rand(-14, 14) * w.ss, y: w.stop + rand(60, 110) * w.ss, vx: 0, vy: 20, life: 0, sz: 1.7, a: 0.7, tg: null, gy: w.sf + (w.jy || 0) });
+    }
+  }
+}
+
+function cleanupWater(keepPuddles) {
+  const wa = state.water;
+  wdrops.length = 0;
+  if (!keepPuddles) { wpuds.length = 0; if (wpd) { wpd.cv.remove(); wpd = null; } }
+  for (const w of walkers) {
+    if (w.wf) {
+      w.lane = phClamp(w.sl, 0, 1);
+      w.dir = Math.random() < 0.5 ? 1 : -1;
+    }
+    W_CLASSES.forEach(c => w.el.classList.remove(c));
+    w.wf = false; w.wg = null; w.wc = {}; w.wfall = false; w.wjump = null; w.jy = 0; w.wat = false;
+    w.sready = false; w.wp = null; w.wait = 0; w.stand = false;
+  }
+  if (!wa) return;
+  clearTimeout(wa.bannerT);
+  document.getElementById("vbanner").classList.remove("show");
+  wa.cv.remove();
+  const pools = wa.pools;
+  pools.forEach(p => p.classList.remove("shown"));
+  setTimeout(() => pools.forEach(p => p.remove()), 900);
+  state.water = null;
+}
+
+function endWater(now) {
+  if (!state.water) return;
+  cleanupWater(true);
+  // normal life continues: the halay comes a few seconds after the water fight
+  state.nextHalay = now + CONFIG.SIMIT_HALAY_DELAY;
+}
+/* =====================  /WATER FIGHT  ===================== */
+
 
 /* =====================  BUS TRIP + FAIR  ===================== */
 // After the macuncu scene: 9 s of normal roaming, a bus arrives, the class queues up (names shown) and boards one by
@@ -4885,7 +5571,7 @@ function checkHalay(now) {
   if (!menu.classList.contains("gone")) return;
 
   // the simit scene always wins: no halay while it runs or is about to start
-  const simitBusy = !!state.trip || state.nextTrip !== Infinity || !!state.sack || state.nextSack !== Infinity || !!state.simit || !!state.volley || !!state.photo || !!state.tug || now >= state.nextTug - CONFIG.SIMIT_GUARD_MS || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextMacun - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
+  const simitBusy = !!state.water || state.nextWater !== Infinity || !!state.trip || state.nextTrip !== Infinity || !!state.sack || state.nextSack !== Infinity || !!state.simit || !!state.volley || !!state.photo || !!state.tug || now >= state.nextTug - CONFIG.SIMIT_GUARD_MS || now >= state.nextSimit - CONFIG.SIMIT_GUARD_MS || now >= state.nextMacun - CONFIG.SIMIT_GUARD_MS || now >= state.nextVolley - CONFIG.SIMIT_GUARD_MS || now >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS;
 
   if (!state.halay && !simitBusy && now >= state.nextHalay && walkers.length) {
     state.halay = true;
@@ -4913,6 +5599,7 @@ function tick(now) {
   checkHalay(now);
   checkTrip(now);
   checkSack(now);
+  checkWater(now);
 
   const n = Math.max(walkers.length, state.expected);
   const base = n <= 10 ? 1 : Math.max(0.55, 1 - (n - 10) * 0.017);
@@ -4924,6 +5611,7 @@ function tick(now) {
   updateTug(now, dt);
   updateTrip(now, dt);
   updateSack(now, dt);
+  updateWater(now, dt);
 
   const e0 = ensureEllipse(walkers.length || 1);
   const rotD = (Math.min(now, state.halayEnd) - state.halayStart) * CONFIG.HALAY_SPEED / 1000;
@@ -4945,7 +5633,7 @@ function tick(now) {
     const e = w.hk * w.hk * (3 - 2 * w.hk);
 
     // the simit scene takes over once any dance / halay pose has faded out
-    const sceneMode = state.trip && w.tp ? "trip" : state.sack && w.sk ? "sack" : state.tug && w.tg ? "tug" : state.simit && w.sm ? "simit" : (state.volley && w.vb ? "volley" : (state.photo && w.ph ? "photo" : null));
+    const sceneMode = state.water && w.wf ? "water" : state.trip && w.tp ? "trip" : state.sack && w.sk ? "sack" : state.tug && w.tg ? "tug" : state.simit && w.sm ? "simit" : (state.volley && w.vb ? "volley" : (state.photo && w.ph ? "photo" : null));
     const sceneOn = !!sceneMode && w.hk <= 0 && w.k < 0.03;
     if (sceneOn && !w.sready) {
       w.sready = true;
@@ -4959,6 +5647,7 @@ function tick(now) {
 
     if (sceneOn) {
       if (sceneMode === "trip") stepTrip(w, dt, now);
+      else if (sceneMode === "water") stepWater(w, dt, now);
       else if (sceneMode === "sack") stepSack(w, dt, now);
       else if (sceneMode === "tug") stepTug(w, dt, now);
       else if (sceneMode === "simit") stepScene(w, dt, now);
@@ -5055,6 +5744,7 @@ function tick(now) {
   renderTug(now);
   renderTrip(now);
   renderSack(now);
+  renderWater(now);
   updateConfetti(dt);
   requestAnimationFrame(tick);
 }
@@ -5062,7 +5752,7 @@ function tick(now) {
 let chatHide = null;
 
 function showChat() {
-  if (!menu.classList.contains("gone") || walkers.length < 2 || state.volley || state.tug || state.trip) return;
+  if (!menu.classList.contains("gone") || walkers.length < 2 || state.volley || state.tug || state.trip || state.water) return;
 
   const a = pick(walkers);
   let b = pick(walkers);
@@ -5094,7 +5784,7 @@ function faceSvg(w) {
 }
 
 function startDance() {
-  if (!menu.classList.contains("gone") || state.halay || state.simit || state.volley || state.photo || state.tug || state.trip || state.nextTrip !== Infinity || state.sack || state.nextSack !== Infinity) return;
+  if (!menu.classList.contains("gone") || state.halay || state.simit || state.volley || state.photo || state.tug || state.trip || state.nextTrip !== Infinity || state.sack || state.nextSack !== Infinity || state.water || state.nextWater !== Infinity) return;
   if (performance.now() >= state.nextTug - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextPhoto - CONFIG.SIMIT_GUARD_MS) return;
   if (performance.now() >= state.nextSimit - CONFIG.SIMIT_GUARD_MS) return;
@@ -5176,6 +5866,8 @@ function closeClass() {
   state.nextTrip = Infinity;
   cleanupSack();
   state.nextSack = Infinity;
+  cleanupWater();
+  state.nextWater = Infinity;
   if (state.volley) {
     clearTimeout(state.volley.bannerT);
     Object.values(state.volley.els).forEach(e => e.remove());
